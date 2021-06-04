@@ -1,0 +1,37 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run",
+            "type": "shell",
+            "command": "go run .",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Test",
+            "type": "shell",
+            "command": "go test ./...",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Docker Build",
+            "type": "shell",
+            "command": "docker build -t idlemon .",
+            "group": "none"
+        },
+        {
+            "label": "Docker Run",
+            "type": "shell",
+            "command": "docker run -d --env-file .env --name idlemon --restart always -p 3000:3000 idlemon",
+            "group": "none"
+        }
+    ]
+}

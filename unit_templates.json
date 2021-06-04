@@ -1,0 +1,40 @@
+{
+    "unitTemplates": [
+        {
+            "id": 1,
+            "typeId": 1,
+            "name": "Warrior",
+            "hp": 10,
+            "atk": 10,
+            "def": 5,
+            "spd": 8
+        },
+        {
+            "id": 2,
+            "typeId": 2,
+            "name": "Mage",
+            "hp": 10,
+            "atk": 10,
+            "def": 5,
+            "spd": 8
+        },
+        {
+            "id": 3,
+            "typeId": 3,
+            "name": "Healer",
+            "hp": 10,
+            "atk": 10,
+            "def": 5,
+            "spd": 8
+        },
+        {
+            "id": 4,
+            "typeId": 4,
+            "name": "Ninja",
+            "hp": 10,
+            "atk": 10,
+            "def": 5,
+            "spd": 15
+        }
+    ]
+}

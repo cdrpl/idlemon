@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS unit_template;
+DROP TABLE IF EXISTS unit_type;
+DROP TABLE IF EXISTS user;

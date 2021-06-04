@@ -1,0 +1,42 @@
+version: "3.8"
+services:
+  idlemon:
+    build:
+      context: .
+    environment:
+      - ENV=${ENV}
+      - CLIENT_VERSION=${CLIENT_VERSION}
+      - ADMIN_PASS=${ADMIN_PASS}
+      - DB_USER=root
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=mariadb
+      - REDIS_HOST=redis
+    restart: always
+    depends_on:
+      - redis
+      - mariadb
+  redis:
+    image: redis:6-alpine
+    restart: always
+  mariadb:
+    image: mariadb:10
+    restart: always
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_PASS}
+      - MARIADB_DATABASE=${DB_NAME}
+    restart: always
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    restart: always
+    volumes: 
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      - PMA_HOST=mariadb

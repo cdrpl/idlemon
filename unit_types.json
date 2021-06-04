@@ -1,0 +1,28 @@
+{
+    "unitTypes": [
+        {
+            "id": 1,
+            "name": "Forest"
+        },
+        {
+            "id": 2,
+            "name": "Abyss"
+        },
+        {
+            "id": 3,
+            "name": "Fortress"
+        },
+        {
+            "id": 4,
+            "name": "Shadow"
+        },
+        {
+            "id": 5,
+            "name": "Light"
+        },
+        {
+            "id": 6,
+            "name": "Dark"
+        }
+    ]
+}

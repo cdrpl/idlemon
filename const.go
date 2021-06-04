@@ -1,0 +1,56 @@
+package main
+
+import "time"
+
+const (
+	VERSION           = "0.0.1"        // The current version of the server.
+	ENV_FILE          = ".env"         // Path to the .env file
+	DB_CONN_RETRIES   = 6              // Number of database connection retries before exit
+	MAX_REQ_BODY_SIZE = 512            // Maximum number of bytes allowed in a request body.
+	API_TOKEN_LEN     = 32             // Number of characters in the API token.
+	API_TOKEN_TTL     = time.Hour * 12 // Time until the API token expires.
+)
+
+// Default env values.
+const (
+	ENV            = "development"
+	PORT           = "3000"
+	CLIENT_VERSION = "1.0.0"
+	ADMIN_PASS     = "adminpass"
+	DB_USER        = "root"
+	DB_PASS        = "password"
+	DB_NAME        = "idlemon"
+	DB_HOST        = "localhost"
+	REDIS_HOST     = "localhost"
+	RUN_MIGRATIONS = "true"
+)
+
+// Unit types, must have the same value as their table row IDs.
+const (
+	FOREST = iota + 1
+	ABYSS
+	FORTRESS
+	SHADOW
+	LIGHT
+	DARK
+)
+
+// MariaDB error codes
+const (
+	ER_DUP_ENTRY = 1062
+)
+
+// Admin user
+const (
+	ADMIN_ID    = 1
+	ADMIN_NAME  = "Admin"
+	ADMIN_EMAIL = "admin@idlemon.com"
+)
+
+// Request context keys
+const (
+	UserIdCtx ctxKey = iota // The user ID of the authenticated user.
+	ReqDtoCtx ctxKey = iota // Used for request DTOs.
+)
+
+type ctxKey int // Context key for adding data to the request context.
