@@ -78,3 +78,13 @@ func UnitTemplateCount(db *sql.DB) (int, error) {
 
 	return count, err
 }
+
+// Return a random unit template ID.
+func RandUnitTemplateID(db *sql.DB) (int, error) {
+	count, err := UnitTemplateCount(db)
+	if err != nil {
+		return 0, err
+	}
+
+	return RandInt(1, count), nil
+}
