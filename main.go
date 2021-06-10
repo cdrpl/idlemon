@@ -56,6 +56,8 @@ func main() {
 	log.Println("connecting to redis")
 	rdb := CreateRedisClient()
 
+	SeedRand()
+
 	port := fmt.Sprintf(":%v", os.Getenv("PORT"))
 	server := &http.Server{
 		Addr:    port,

@@ -20,5 +20,7 @@ func TestMain(m *testing.M) {
 	DropTables(db)
 	InitDatabase(db)
 
+	SeedRand()
+
 	os.Exit(m.Run())
 }

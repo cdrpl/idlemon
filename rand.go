@@ -4,6 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"math"
+	"math/big"
+	mathRand "math/rand"
 )
 
 // Generate a random string.
@@ -20,4 +24,14 @@ func GenerateToken(length int) (string, error) {
 	}
 
 	return hex.EncodeToString(bytes), nil
+}
+
+// Seed math rand using crypto rand. Will exit app if error is encountered.
+func SeedRand() {
+	n, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		log.Fatalln("could not seed rand:", err)
+	}
+
+	mathRand.Seed(n.Int64())
 }
