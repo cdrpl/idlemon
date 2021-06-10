@@ -35,3 +35,7 @@ func SeedRand() {
 
 	mathRand.Seed(n.Int64())
 }
+
+func RandInt(min int, max int) int {
+	return mathRand.Int()%max + 1
+}
