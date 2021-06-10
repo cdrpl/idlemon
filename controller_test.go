@@ -245,7 +245,7 @@ func TestUserRename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to create test user: %v", err)
 	}
-	fmt.Println(user, token)
+
 	newName := "new name dog"
 	renameReq := UserRenameReq{Name: newName}
 	js, _ := json.Marshal(renameReq)
@@ -286,63 +286,4 @@ func TestUserRename(t *testing.T) {
 		t.Errorf("unauthorized should be returned if no authorization header is given")
 		t.Errorf("expect status 401, received: %v, body: %v", status, rr.Body.String())
 	}
-}
-
-func RandUser() (User, error) {
-	user := User{}
-
-	name, err := GenerateToken(16)
-	if err != nil {
-		return User{}, err
-	}
-
-	email, err := GenerateToken(16)
-	if err != nil {
-		return User{}, err
-	}
-
-	pass, err := GenerateToken(16)
-	if err != nil {
-		return User{}, err
-	}
-
-	user.Name = name
-	user.Email = email + "@fakemockemailfake.com"
-	user.Pass = pass
-
-	return user, nil
-}
-
-func InsertRandUser(db *sql.DB) (User, error) {
-	user, err := RandUser()
-	if err != nil {
-		return User{}, err
-	}
-
-	result, err := Insert(db, user.Name, user.Email, user.Pass)
-	if err != nil {
-		return User{}, err
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return User{}, err
-	}
-
-	user.ID = int(id)
-	return user, nil
-}
-
-func AuthenticatedUser(db *sql.DB, rdb *redis.Client) (string, User, error) {
-	user, err := InsertRandUser(db)
-	if err != nil {
-		return "", User{}, err
-	}
-
-	token, err := CreateApiToken(rdb, user.ID)
-	if err != nil {
-		return "", User{}, err
-	}
-
-	return token, user, err
 }
