@@ -140,9 +140,9 @@ func TestSignUp(t *testing.T) {
 	}
 
 	m := map[string]int{"status": 0}
-	bytes, _ := json.Marshal(m)
+	js, _ = json.Marshal(m)
 
-	expect := string(bytes) + "\n"
+	expect := string(js) + "\n"
 	if rr.Body.String() != expect {
 		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
 	}
@@ -172,6 +172,15 @@ func TestSignUp(t *testing.T) {
 	err = bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(userInsert.Pass))
 	if err != nil {
 		t.Error("password was not correctly hashed")
+	}
+
+	// should return 400 with invalid json
+	req = httptest.NewRequest("POST", "/user/sign-up", bytes.NewBuffer([]byte("invalid {json {{ 'f}")))
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("expect status 400, received: %v", status)
 	}
 }
 
