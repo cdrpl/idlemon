@@ -2,13 +2,17 @@ package main_test
 
 import (
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	. "github.com/cdrpl/idlemon"
 	"github.com/go-redis/redis/v8"
+	"github.com/julienschmidt/httprouter"
 )
 
 func TestMain(m *testing.M) {
@@ -96,4 +100,21 @@ func InsertRandUnit(db *sql.DB, userID int) (Unit, error) {
 	}
 
 	return InsertUnit(db, userID, template)
+}
+
+// Will call t.Fatalf if 401 not received.
+func AuthTest(t *testing.T, router *httprouter.Router, method string, url string) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(method, url, nil)
+
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusUnauthorized {
+		t.Fatalf("unauthorized should be returned if no authorization header is given")
+		t.Fatalf("expect status 401, received: %v, body: %v", status, rr.Body.String())
+	}
+}
+
+func SetAuthorization(req *http.Request, userID int, token string) {
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", userID, token))
 }

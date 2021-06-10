@@ -237,9 +237,14 @@ func TestSignIn(t *testing.T) {
 }
 
 func TestUserRename(t *testing.T) {
+	method := "PUT"
+	url := "/user/rename"
+
 	db := CreateDBConn()
 	rdb := CreateRedisClient()
 	router := CreateRouter(db, rdb)
+
+	AuthTest(t, router, method, url)
 
 	token, user, err := AuthenticatedUser(db, rdb)
 	if err != nil {
@@ -250,8 +255,8 @@ func TestUserRename(t *testing.T) {
 	renameReq := UserRenameReq{Name: newName}
 	js, _ := json.Marshal(renameReq)
 
-	req := httptest.NewRequest("PUT", "/user/rename", bytes.NewBuffer(js))
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	req := httptest.NewRequest(method, url, bytes.NewBuffer(js))
+	SetAuthorization(req, user.ID, token)
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -275,15 +280,5 @@ func TestUserRename(t *testing.T) {
 	err = db.QueryRow("SELECT name FROM user WHERE id = ?", user.ID).Scan(&userQuery.Name)
 	if err != nil {
 		t.Errorf("expected name in database to equal %v, received: %v", newName, userQuery.Name)
-	}
-
-	// Should fail due to no authorization header
-	req = httptest.NewRequest("PUT", "/user/rename", bytes.NewBuffer(js))
-	rr = httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusUnauthorized {
-		t.Errorf("unauthorized should be returned if no authorization header is given")
-		t.Errorf("expect status 401, received: %v, body: %v", status, rr.Body.String())
 	}
 }
