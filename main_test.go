@@ -102,7 +102,7 @@ func InsertRandUnit(db *sql.DB, userID int) (Unit, error) {
 	return InsertUnit(db, userID, template)
 }
 
-// Will call t.Fatalf if 401 not received.
+// Will send an HTTP request without an Authorization header then call t.Fatalf if 401 not received.
 func AuthTest(t *testing.T, router *httprouter.Router, method string, url string) {
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(method, url, nil)
