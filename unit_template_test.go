@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"database/sql"
 	"testing"
 
 	. "github.com/cdrpl/idlemon"
@@ -23,5 +24,38 @@ func TestUnitTemplateCount(t *testing.T) {
 
 	if count != expected {
 		t.Errorf("expected count to equal %v, received %v", expected, count)
+	}
+}
+
+func TestRandUnitTemplateID(t *testing.T) {
+	db := CreateDBConn()
+
+	for i := 0; i < 100; i++ {
+		id, err := RandUnitTemplateID(db)
+		if err != nil {
+			t.Fatalf("rand unit template ID error: %v", err)
+		}
+
+		// id must be valid
+		var scan int
+		err = db.QueryRow("SELECT id FROM unit_template WHERE id = ?", id).Scan(&scan)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				t.Errorf("received an invalid ID: %v", id)
+			} else {
+				t.Fatalf("query error: %v", err)
+			}
+		}
+	}
+}
+
+func BenchmarkRandUnitTemplateID(b *testing.B) {
+	db := CreateDBConn()
+
+	for i := 0; i < b.N; i++ {
+		_, err := RandUnitTemplateID(db)
+		if err != nil {
+			b.Fatalf("rand unit template ID error: %v", err)
+		}
 	}
 }

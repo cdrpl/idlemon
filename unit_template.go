@@ -81,10 +81,9 @@ func UnitTemplateCount(db *sql.DB) (int, error) {
 
 // Return a random unit template ID.
 func RandUnitTemplateID(db *sql.DB) (int, error) {
-	count, err := UnitTemplateCount(db)
-	if err != nil {
-		return 0, err
-	}
+	var id int
 
-	return RandInt(1, count), nil
+	err := db.QueryRow("SELECT id FROM unit_template ORDER BY RAND() LIMIT 1").Scan(&id)
+
+	return id, err
 }
