@@ -23,7 +23,7 @@ func TestInsertUnit(t *testing.T) {
 
 	// returned unit ID should be greater than 0
 	if unit.ID <= 0 {
-		t.Error("returned unit have an ID less than or equal to 0")
+		t.Error("returned unit has an ID less than or equal to 0")
 	}
 
 	if unit.UserID != user.ID {
