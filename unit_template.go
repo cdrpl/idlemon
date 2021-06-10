@@ -40,6 +40,7 @@ func UnitTemplates(db *sql.DB) ([]UnitTemplate, error) {
 	return templates, nil
 }
 
+// Insert unit templates from the unit templates json file.
 func InsertUnitTemplates(db *sql.DB) {
 	var data map[string][]UnitTemplate
 
@@ -67,4 +68,13 @@ func InsertUnitTemplates(db *sql.DB) {
 			}
 		}
 	}
+}
+
+// Return count of unit templates.
+func UnitTemplateCount(db *sql.DB) (int, error) {
+	count := 0
+
+	err := db.QueryRow("SELECT COUNT(id) FROM unit_template").Scan(&count)
+
+	return count, err
 }
