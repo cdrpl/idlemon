@@ -1,6 +1,6 @@
-# Idlemon
+# Idlemon Server
 
-This is a game server written in Go. Most player actions are received through HTTP requests but WebSockets are used for realtime needs such as player chat. Player data is saved using MariaDB and Redis is used as a temporary cache.
+This is a game server for an online idle game. Most player actions are received through HTTP requests but WebSockets are used for realtime needs such as player chat. Player data is saved using MariaDB and Redis is used as a temporary cache.
 
 ### Dependencies
 
