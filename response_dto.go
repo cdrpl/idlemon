@@ -4,4 +4,5 @@ package main
 type SignInRes struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
+	Units []Unit `json:"units"`
 }

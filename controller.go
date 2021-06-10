@@ -92,7 +92,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	signInReq := GetReqDTO(r).(*SignInReq)
 
-	var user User
+	user := User{}
 	query := "SELECT id, name, pass, exp, campaign, created_at FROM user WHERE email = ?"
 	err := c.db.QueryRow(query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.Exp, &user.Campaign, &user.CreatedAt)
 	if err != nil {
@@ -118,7 +118,15 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	signInRes := SignInRes{Token: token, User: user}
+	// find user units
+	units, err := Units(c.db, user.ID)
+	if err != nil {
+		log.Printf("fetch user units error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	signInRes := SignInRes{Token: token, User: user, Units: units}
 	signInRes.User.Email = signInReq.Email
 	signInRes.User.Pass = ""
 
