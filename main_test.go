@@ -87,3 +87,13 @@ func AuthenticatedUser(db *sql.DB, rdb *redis.Client) (string, User, error) {
 
 	return token, user, err
 }
+
+// Create a random unit and insert it into the table.
+func InsertRandUnit(db *sql.DB, userID int) (Unit, error) {
+	template, err := RandUnitTemplateID(db)
+	if err != nil {
+		return Unit{}, err
+	}
+
+	return InsertUnit(db, userID, template)
+}
