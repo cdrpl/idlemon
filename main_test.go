@@ -110,7 +110,7 @@ func AuthTest(t *testing.T, router *httprouter.Router, method string, url string
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusUnauthorized {
-		t.Fatalf("unauthorized should be returned if no authorization header is given")
+		t.Errorf("unauthorized should be returned if no authorization header is given")
 		t.Fatalf("expect status 401, received: %v, body: %v", status, rr.Body.String())
 	}
 }
