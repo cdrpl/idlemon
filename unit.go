@@ -33,3 +33,26 @@ func Units(db *sql.DB, userID int) ([]Unit, error) {
 
 	return units, nil
 }
+
+func InsertUnit(db *sql.DB, userID int, templateID int) (Unit, error) {
+	unit := Unit{
+		UserID:     userID,
+		TemplateID: templateID,
+		Level:      1,
+		Stars:      1,
+	}
+
+	query := "INSERT INTO unit (user_id, template_id) VALUES (?, ?)"
+	result, err := db.Exec(query, unit.UserID, unit.TemplateID)
+	if err != nil {
+		return unit, err
+	}
+
+	unitID, err := result.LastInsertId()
+	if err != nil {
+		return unit, err
+	}
+
+	unit.ID = int(unitID)
+	return unit, nil
+}
