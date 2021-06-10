@@ -27,6 +27,9 @@ func CreateRouter(db *sql.DB, rdb *redis.Client) *httprouter.Router {
 	router.GET("/version", controller.Version)
 	router.GET("/robots.txt", controller.Robots)
 
+	// unit routes
+	router.PUT("/unit/:id/toggle-lock", auth(controller.UnitToggleLock))
+
 	// user routes
 	router.POST("/user/sign-up", body(typeOf(SignUpReq{}), controller.SignUp))
 	router.POST("/user/sign-in", body(typeOf(SignInReq{}), controller.SignIn))

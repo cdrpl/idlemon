@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -119,6 +120,87 @@ func TestNotFound(t *testing.T) {
 	expect := string(bytes) + "\n"
 	if rr.Body.String() != expect {
 		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
+	}
+}
+
+/* Unit Routes */
+
+func TestUnitLock(t *testing.T) {
+	db := CreateDBConn()
+	rdb := CreateRedisClient()
+	router := CreateRouter(db, rdb)
+
+	AuthTest(t, router, "PUT", "/unit/1/toggle-lock")
+
+	token, user, err := AuthenticatedUser(db, rdb)
+	if err != nil {
+		t.Fatalf("fail to create test user: %v", err)
+	}
+
+	unit, err := InsertRandUnit(db, user.ID)
+	if err != nil {
+		t.Fatalf("insert rand user error: %v", err)
+	}
+
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit.ID), nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	// lock should be updated in database
+	var result bool
+	err = db.QueryRow("SELECT is_locked FROM unit WHERE id = ?", unit.ID).Scan(&result)
+	if err != nil {
+		t.Fatalf("db query error: %v", err)
+	}
+
+	if result != true {
+		t.Errorf("expected unit to be locked in databased, receive: %v", result)
+	}
+
+	// should reject unit ID of non existent unit
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", 1234567), nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	rr = httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	// should reject malformed unit ID
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", "invalid-unit-id"), nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	rr = httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	// should reject unit not owned by user
+	user2, err := InsertRandUser(db)
+	if err != nil {
+		log.Fatalf("insert rand user error: %v", err)
+	}
+
+	unit2, err := InsertRandUnit(db, user2.ID)
+	if err != nil {
+		log.Fatalf("insert rand user error: %v", err)
+	}
+
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit2.ID), nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	rr = httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
 	}
 }
 

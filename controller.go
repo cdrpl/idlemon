@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/go-sql-driver/mysql"
@@ -51,6 +52,38 @@ func (c Controller) MethodNotAllowed(w http.ResponseWriter, r *http.Request) {
 
 func (c Controller) NotFound(w http.ResponseWriter, r *http.Request) {
 	ErrRes(w, http.StatusNotFound)
+}
+
+/* Unit Routes */
+
+// Toggle a unit's lock. Only works on units owned by the user.
+func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	userID := GetUserID(r)
+
+	unitID, err := strconv.Atoi(p.ByName("id"))
+	if err != nil {
+		ErrResCustom(w, http.StatusBadRequest, "invalid unit ID")
+		return
+	}
+
+	// query will only run if unit is owned by the user
+	result, err := c.db.Exec("UPDATE unit SET is_locked = !is_locked WHERE (id = ? AND user_id = ?)", unitID, userID)
+	if err != nil {
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+	}
+
+	if rowsAffected > 0 {
+		log.Printf("user %v toggled lock on unit %v", userID, unitID)
+		JsonSuccess(w)
+	} else {
+		log.Printf("user %v attempt toggle lock on invalid unit ID %v", userID, unitID)
+		ErrResCustom(w, http.StatusBadRequest, "invalid unit ID")
+	}
 }
 
 /* User Routes */
