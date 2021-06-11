@@ -151,7 +151,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	// find user units
+	// get user units
 	units, err := Units(r.Context(), c.db, user.ID)
 	if err != nil {
 		log.Printf("fetch user units error: %v\n", err)
@@ -159,9 +159,23 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	signInRes := SignInRes{Token: token, User: user, Units: units}
-	signInRes.User.Email = signInReq.Email
-	signInRes.User.Pass = ""
+	// get user resources
+	userResources, err := GetUserResources(r.Context(), c.db, user.ID)
+	if err != nil {
+		log.Printf("fetch user resources error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	user.Email = signInReq.Email
+	user.Pass = ""
+
+	signInRes := SignInRes{
+		Token:         token,
+		User:          user,
+		Units:         units,
+		UserResources: userResources,
+	}
 
 	log.Printf("user sign in: %v\n", signInReq.Email)
 	JsonRes(w, signInRes)

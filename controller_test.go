@@ -325,6 +325,29 @@ func TestSignIn(t *testing.T) {
 	if result != signInRes.Token {
 		t.Fatalf("api token does not match, expected: %v, receive: %v", signInRes.Token, result)
 	}
+
+	// validate response json keys
+	var m map[string]interface{}
+	err = json.Unmarshal(rr.Body.Bytes(), &m)
+	if err != nil {
+		t.Errorf("fail to unmarshal sign in response into map: %v", err)
+	}
+
+	if _, ok := m["user"]; !ok {
+		t.Error("sign in response didn't have a user property")
+	}
+
+	if _, ok := m["token"]; !ok {
+		t.Error("sign in response didn't have a token property")
+	}
+
+	if _, ok := m["units"]; !ok {
+		t.Error("sign in response didn't have a units property")
+	}
+
+	if _, ok := m["resources"]; !ok {
+		t.Error("sign in response didn't have a resources property")
+	}
 }
 
 func TestUserRename(t *testing.T) {
