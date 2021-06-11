@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS resource;
 DROP TABLE IF EXISTS unit;
 DROP TABLE IF EXISTS unit_template;
 DROP TABLE IF EXISTS unit_type;
