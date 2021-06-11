@@ -22,7 +22,7 @@ type User struct {
 }
 
 // Will hash the user password then insert into the database.
-func Insert(db *sql.DB, name string, email string, pass string) (sql.Result, error) {
+func InsertUser(db *sql.DB, name string, email string, pass string) (sql.Result, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err

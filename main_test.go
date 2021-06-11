@@ -64,7 +64,7 @@ func InsertRandUser(db *sql.DB) (User, error) {
 		return User{}, err
 	}
 
-	result, err := Insert(db, user.Name, user.Email, user.Pass)
+	result, err := InsertUser(db, user.Name, user.Email, user.Pass)
 	if err != nil {
 		return User{}, err
 	}

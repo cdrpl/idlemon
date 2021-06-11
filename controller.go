@@ -111,7 +111,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	_, err = Insert(c.db, req.Name, req.Email, req.Pass)
+	_, err = InsertUser(c.db, req.Name, req.Email, req.Pass)
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
