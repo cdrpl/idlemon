@@ -1,0 +1,20 @@
+{
+    "resources": [
+        {
+            "id": 1,
+            "name": "Gold"
+        },
+        {
+            "id": 2,
+            "name": "Gems"
+        },
+        {
+            "id": 3,
+            "name": "Experience Stone"
+        },
+        {
+            "id": 4,
+            "name": "Evolution Stone"
+        }
+    ]
+}
