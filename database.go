@@ -37,6 +37,7 @@ func InitDatabase(db *sql.DB) {
 	CreateDatabaseTables(db)
 	InsertUnitTypes(db)
 	InsertUnitTemplates(db)
+	InsertResources(db)
 	InsertAdminUser(db)
 }
 
