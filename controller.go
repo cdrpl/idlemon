@@ -67,7 +67,7 @@ func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p htt
 	}
 
 	// query will only run if unit is owned by the user
-	result, err := c.db.Exec("UPDATE unit SET is_locked = !is_locked WHERE (id = ? AND user_id = ?)", unitID, userID)
+	result, err := c.db.ExecContext(r.Context(), "UPDATE unit SET is_locked = !is_locked WHERE (id = ? AND user_id = ?)", unitID, userID)
 	if err != nil {
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 	}
@@ -91,7 +91,7 @@ func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p htt
 func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	req := GetReqDTO(r).(*SignUpReq)
 
-	exists, err := NameExists(c.db, req.Name)
+	exists, err := NameExists(r.Context(), c.db, req.Name)
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -101,7 +101,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	exists, err = EmailExists(c.db, req.Email)
+	exists, err = EmailExists(r.Context(), c.db, req.Email)
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -111,7 +111,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	_, err = InsertUser(c.db, req.Name, req.Email, req.Pass)
+	_, err = InsertUser(r.Context(), c.db, req.Name, req.Email, req.Pass)
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -127,7 +127,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 
 	user := User{}
 	query := "SELECT id, name, pass, exp, campaign, created_at FROM user WHERE email = ?"
-	err := c.db.QueryRow(query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.Exp, &user.Campaign, &user.CreatedAt)
+	err := c.db.QueryRowContext(r.Context(), query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.Exp, &user.Campaign, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			ErrRes(w, http.StatusUnauthorized)
@@ -144,7 +144,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	token, err := CreateApiToken(c.rdb, user.ID)
+	token, err := CreateApiToken(r.Context(), c.rdb, user.ID)
 	if err != nil {
 		log.Printf("sign in error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -152,7 +152,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 	}
 
 	// find user units
-	units, err := Units(c.db, user.ID)
+	units, err := Units(r.Context(), c.db, user.ID)
 	if err != nil {
 		log.Printf("fetch user units error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -171,7 +171,7 @@ func (c Controller) UserRename(w http.ResponseWriter, r *http.Request, p httprou
 	id := GetUserID(r)
 	req := GetReqDTO(r).(*UserRenameReq)
 
-	_, err := c.db.Exec("UPDATE user SET name = ? WHERE id = ?", req.Name, id)
+	_, err := c.db.ExecContext(r.Context(), "UPDATE user SET name = ? WHERE id = ?", req.Name, id)
 	if err != nil {
 		if sqlErr, ok := err.(*mysql.MySQLError); ok {
 			if sqlErr.Number == ER_DUP_ENTRY {

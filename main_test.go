@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -64,7 +65,7 @@ func InsertRandUser(db *sql.DB) (User, error) {
 		return User{}, err
 	}
 
-	result, err := InsertUser(db, user.Name, user.Email, user.Pass)
+	result, err := InsertUser(context.Background(), db, user.Name, user.Email, user.Pass)
 	if err != nil {
 		return User{}, err
 	}
@@ -84,7 +85,7 @@ func AuthenticatedUser(db *sql.DB, rdb *redis.Client) (string, User, error) {
 		return "", User{}, err
 	}
 
-	token, err := CreateApiToken(rdb, user.ID)
+	token, err := CreateApiToken(context.Background(), rdb, user.ID)
 	if err != nil {
 		return "", User{}, err
 	}
@@ -99,7 +100,7 @@ func InsertRandUnit(db *sql.DB, userID int) (Unit, error) {
 		return Unit{}, err
 	}
 
-	return InsertUnit(db, userID, template)
+	return InsertUnit(context.Background(), db, userID, template)
 }
 
 // Will send an HTTP request without an Authorization header then call t.Fatalf if 401 not received.

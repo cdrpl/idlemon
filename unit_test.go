@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/cdrpl/idlemon"
@@ -16,7 +17,7 @@ func TestInsertUnit(t *testing.T) {
 
 	templateID := 2
 
-	unit, err := InsertUnit(db, user.ID, templateID)
+	unit, err := InsertUnit(context.Background(), db, user.ID, templateID)
 	if err != nil {
 		t.Fatalf("insert unit error: %v", err)
 	}

@@ -1,6 +1,9 @@
 package main
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 type Unit struct {
 	ID         int  `json:"id"`
@@ -12,10 +15,10 @@ type Unit struct {
 }
 
 // Find all units owned by a user.
-func Units(db *sql.DB, userID int) ([]Unit, error) {
+func Units(ctx context.Context, db *sql.DB, userID int) ([]Unit, error) {
 	units := make([]Unit, 0)
 
-	rows, err := db.Query("SELECT * FROM unit WHERE user_id = ?", userID)
+	rows, err := db.QueryContext(ctx, "SELECT * FROM unit WHERE user_id = ?", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +37,7 @@ func Units(db *sql.DB, userID int) ([]Unit, error) {
 	return units, nil
 }
 
-func InsertUnit(db *sql.DB, userID int, templateID int) (Unit, error) {
+func InsertUnit(ctx context.Context, db *sql.DB, userID int, templateID int) (Unit, error) {
 	unit := Unit{
 		UserID:     userID,
 		TemplateID: templateID,
@@ -43,7 +46,7 @@ func InsertUnit(db *sql.DB, userID int, templateID int) (Unit, error) {
 	}
 
 	query := "INSERT INTO unit (user_id, template_id) VALUES (?, ?)"
-	result, err := db.Exec(query, unit.UserID, unit.TemplateID)
+	result, err := db.ExecContext(ctx, query, unit.UserID, unit.TemplateID)
 	if err != nil {
 		return unit, err
 	}

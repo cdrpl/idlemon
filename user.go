@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -22,13 +23,13 @@ type User struct {
 }
 
 // Will hash the user password then insert into the database.
-func InsertUser(db *sql.DB, name string, email string, pass string) (sql.Result, error) {
+func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass string) (sql.Result, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := db.Exec("INSERT INTO user (name, email, pass) VALUES (?, ?, ?)", name, email, string(hash))
+	result, err := db.ExecContext(ctx, "INSERT INTO user (name, email, pass) VALUES (?, ?, ?)", name, email, string(hash))
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +65,8 @@ func InsertAdminUser(db *sql.DB) {
 }
 
 // Returns true if the user name is already taken.
-func NameExists(db *sql.DB, name string) (bool, error) {
-	err := db.QueryRow("SELECT name FROM user WHERE name = ?", name).Scan(&name)
+func NameExists(ctx context.Context, db *sql.DB, name string) (bool, error) {
+	err := db.QueryRowContext(ctx, "SELECT name FROM user WHERE name = ?", name).Scan(&name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -78,8 +79,8 @@ func NameExists(db *sql.DB, name string) (bool, error) {
 }
 
 // Returns true if the user email is already taken.
-func EmailExists(db *sql.DB, email string) (bool, error) {
-	err := db.QueryRow("SELECT email FROM user WHERE email = ?", email).Scan(&email)
+func EmailExists(ctx context.Context, db *sql.DB, email string) (bool, error) {
+	err := db.QueryRowContext(ctx, "SELECT email FROM user WHERE email = ?", email).Scan(&email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
