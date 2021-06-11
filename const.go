@@ -27,12 +27,20 @@ const (
 
 // Unit types, must have the same value as their table row IDs.
 const (
-	FOREST = iota + 1
-	ABYSS
-	FORTRESS
-	SHADOW
-	LIGHT
-	DARK
+	UNIT_TYPE_FOREST = iota + 1
+	UNIT_TYPE_ABYSS
+	UNIT_TYPE_FORTRESS
+	UNIT_TYPE_SHADOW
+	UNIT_TYPE_LIGHT
+	UNIT_TYPE_DARK
+)
+
+// Resources, must have the same value as their table row IDs.
+const (
+	RESOURCE_GOLD = iota + 1
+	RESOURCE_GEMS
+	RESOURCE_EXP_STONE
+	RESOURCE_EVO_STONE
 )
 
 // MariaDB error codes
