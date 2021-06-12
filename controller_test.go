@@ -22,7 +22,7 @@ import (
 /* App Routes */
 
 func TestHealthCheck(t *testing.T) {
-	router := CreateRouter(CreateDBConn(), CreateRedisClient())
+	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -46,7 +46,7 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	router := CreateRouter(CreateDBConn(), CreateRedisClient())
+	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/version", nil)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestVersion(t *testing.T) {
 }
 
 func TestRobots(t *testing.T) {
-	router := CreateRouter(CreateDBConn(), CreateRedisClient())
+	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/robots.txt", nil)
 	if err != nil {
@@ -100,7 +100,7 @@ func TestRobots(t *testing.T) {
 }
 
 func TestNotFound(t *testing.T) {
-	router := CreateRouter(CreateDBConn(), CreateRedisClient())
+	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/invalid-route", nil)
 	if err != nil {
@@ -128,7 +128,7 @@ func TestNotFound(t *testing.T) {
 func TestUnitLock(t *testing.T) {
 	db := CreateDBConn()
 	rdb := CreateRedisClient()
-	router := CreateRouter(db, rdb)
+	router := CreateRouterTest(db, rdb)
 
 	AuthTest(t, router, "PUT", "/unit/1/toggle-lock")
 
@@ -208,7 +208,7 @@ func TestUnitLock(t *testing.T) {
 
 func TestSignUp(t *testing.T) {
 	db := CreateDBConn()
-	router := CreateRouter(db, CreateRedisClient())
+	router := CreateRouterTest(db, CreateRedisClient())
 
 	userInsert := SignUpReq{Name: "name", Email: "name@name.com", Pass: "password"}
 	js, _ := json.Marshal(userInsert)
@@ -269,7 +269,7 @@ func TestSignUp(t *testing.T) {
 func TestSignIn(t *testing.T) {
 	db := CreateDBConn()
 	rdb := CreateRedisClient()
-	router := CreateRouter(db, rdb)
+	router := CreateRouterTest(db, rdb)
 
 	// insert a test user
 	user, err := InsertRandUser(db)
@@ -356,7 +356,7 @@ func TestUserRename(t *testing.T) {
 
 	db := CreateDBConn()
 	rdb := CreateRedisClient()
-	router := CreateRouter(db, rdb)
+	router := CreateRouterTest(db, rdb)
 
 	AuthTest(t, router, method, url)
 

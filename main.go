@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/gorilla/websocket"
 )
 
 func main() {
@@ -41,10 +42,18 @@ func main() {
 
 	SeedRand()
 
+	// setup WebSocket
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  WS_READ_BUFFER_SIZE,
+		WriteBufferSize: WS_WRITE_BUFFER_SIZE,
+	}
+	wsHub := CreateWsHub(upgrader)
+	go wsHub.Run()
+
 	port := fmt.Sprintf(":%v", os.Getenv("PORT"))
 	server := &http.Server{
 		Addr:    port,
-		Handler: CreateRouter(db, rdb),
+		Handler: CreateRouter(db, rdb, wsHub),
 	}
 	go RunHTTPServer(server)
 

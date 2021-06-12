@@ -13,6 +13,7 @@ import (
 
 	. "github.com/cdrpl/idlemon"
 	"github.com/go-redis/redis/v8"
+	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -118,4 +119,16 @@ func AuthTest(t *testing.T, router *httprouter.Router, method string, url string
 
 func SetAuthorization(req *http.Request, userID int, token string) {
 	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", userID, token))
+}
+
+// Helper method to create a router with a WebSocket hub.
+func CreateRouterTest(db *sql.DB, rdb *redis.Client) *httprouter.Router {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  WS_READ_BUFFER_SIZE,
+		WriteBufferSize: WS_WRITE_BUFFER_SIZE,
+	}
+	wsHub := CreateWsHub(upgrader)
+	go wsHub.Run()
+
+	return CreateRouter(db, rdb, wsHub)
 }

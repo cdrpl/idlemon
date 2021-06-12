@@ -9,7 +9,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func CreateRouter(db *sql.DB, rdb *redis.Client) *httprouter.Router {
+func CreateRouter(db *sql.DB, rdb *redis.Client, wsHub *WsHub) *httprouter.Router {
 	router := httprouter.New()
 
 	// controllers
@@ -40,6 +40,11 @@ func CreateRouter(db *sql.DB, rdb *redis.Client) *httprouter.Router {
 
 	// not found handler
 	router.NotFound = http.HandlerFunc(controller.NotFound)
+
+	// WebSocket route
+	router.GET("/ws", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		WsConnectHandler(wsHub, w, r)
+	})
 
 	return router
 }
