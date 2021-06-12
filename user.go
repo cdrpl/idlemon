@@ -21,23 +21,54 @@ type User struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// Will hash the user password then insert into the database.
-func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass string) (sql.Result, error) {
+// Will hash the user password then insert into the database. Returns the last insert ID.
+func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass string) (int, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	result, err := db.ExecContext(ctx, "INSERT INTO user (name, email, pass) VALUES (?, ?, ?)", name, email, string(hash))
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	var result sql.Result
+
+	// if inserting admin user, insert the ID, every other account uses auto increment ID
+	if name == ADMIN_NAME {
+		result, err = tx.Exec("INSERT INTO user (id, name, email, pass) VALUES (?, ?, ?, ?)", ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL, string(hash))
+		if err != nil {
+			log.Fatalln("insert admin user error:", err)
+		}
+	} else {
+		result, err = tx.ExecContext(ctx, "INSERT INTO user (name, email, pass) VALUES (?, ?, ?)", name, email, string(hash))
+		if err != nil {
+			return 0, err
+		}
 	}
 
-	return result, nil
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	// insert campaign table
+	_, err = tx.ExecContext(ctx, "INSERT INTO campaign (user_id) VALUES (?)", id)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return int(id), nil
 }
 
 // Will insert the admin user if it doesn't exist.
-func InsertAdminUser(db *sql.DB) {
+func InsertAdminUser(ctx context.Context, db *sql.DB) {
 	var id int
 
 	// only insert admin user if no admin user exists
@@ -46,12 +77,7 @@ func InsertAdminUser(db *sql.DB) {
 		if errors.Is(err, sql.ErrNoRows) {
 			pass := os.Getenv("ADMIN_PASS")
 
-			hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
-			if err != nil {
-				log.Fatalln("insert admin user error:", err)
-			}
-
-			_, err = db.Exec("INSERT INTO user (id, name, email, pass) VALUES (?, ?, ?, ?)", ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL, string(hash))
+			_, err := InsertUser(ctx, db, ADMIN_NAME, ADMIN_EMAIL, pass)
 			if err != nil {
 				log.Fatalln("insert admin user error:", err)
 			}

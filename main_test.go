@@ -66,17 +66,12 @@ func InsertRandUser(db *sql.DB) (User, error) {
 		return User{}, err
 	}
 
-	result, err := InsertUser(context.Background(), db, user.Name, user.Email, user.Pass)
+	id, err := InsertUser(context.Background(), db, user.Name, user.Email, user.Pass)
 	if err != nil {
 		return User{}, err
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return User{}, err
-	}
-
-	user.ID = int(id)
+	user.ID = id
 	return user, nil
 }
 

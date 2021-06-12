@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -38,7 +39,7 @@ func InitDatabase(db *sql.DB) {
 	InsertUnitTypes(db)
 	InsertUnitTemplates(db)
 	InsertResources(db)
-	InsertAdminUser(db)
+	InsertAdminUser(context.Background(), db)
 }
 
 func CreateDatabaseTables(db *sql.DB) {
