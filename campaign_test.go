@@ -14,7 +14,7 @@ func TestCampaignCollect(t *testing.T) {
 	// represent campaign collected timeDiff seconds ago
 	campaign := Campaign{
 		Level:           13,
-		LastCollectedAt: now.Add(-time.Duration(time.Second * time.Duration(timeDiff))),
+		LastCollectedAt: now.Add(-time.Second * time.Duration(timeDiff)),
 	}
 
 	exp, gold, expStones := campaign.Collect()
