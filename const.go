@@ -26,12 +26,13 @@ const (
 )
 
 const (
-	CAMPAIGN_EXP_PER_SEC       = 5  // The amount of exp earned every second on campaign level 1
-	CAMPAIGN_GOLD_PER_SEC      = 20 // The amount of gold earned every second on campaign level 1
-	CAMPAIGN_EXP_STONE_PER_SEC = 2  // The amount of exp stones earned every second on campaign level 1
-	CAMPAIGN_EXP_GROWTH        = 2  // Exp gained from campaign increase by this value every 5 levels
-	CAMPAIGN_GOLD_GROWTH       = 1  // Gold gained from campaign increase by this value every 5 levels
-	CAMPAIGN_EXP_STONE_GROWTH  = 3  // Exp stones gained from campaign increase by this value every 5 levels
+	CAMPAIGN_MAX_COLLECT       = time.Hour * 24 // Max time before campaign cannot collect anymore
+	CAMPAIGN_EXP_PER_SEC       = 5              // The amount of exp earned every second on campaign level 1
+	CAMPAIGN_GOLD_PER_SEC      = 20             // The amount of gold earned every second on campaign level 1
+	CAMPAIGN_EXP_STONE_PER_SEC = 2              // The amount of exp stones earned every second on campaign level 1
+	CAMPAIGN_EXP_GROWTH        = 2              // Exp gained from campaign increase by this value every 5 levels
+	CAMPAIGN_GOLD_GROWTH       = 1              // Gold gained from campaign increase by this value every 5 levels
+	CAMPAIGN_EXP_STONE_GROWTH  = 3              // Exp stones gained from campaign increase by this value every 5 levels
 )
 
 // Unit types, must have the same value as their table row IDs.
