@@ -126,8 +126,8 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 	signInReq := GetReqDTO(r).(*SignInReq)
 
 	user := User{}
-	query := "SELECT id, name, pass, exp, campaign, created_at FROM user WHERE email = ?"
-	err := c.db.QueryRowContext(r.Context(), query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.Exp, &user.Campaign, &user.CreatedAt)
+	query := "SELECT id, name, pass, exp, created_at FROM user WHERE email = ?"
+	err := c.db.QueryRowContext(r.Context(), query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.Exp, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			ErrRes(w, http.StatusUnauthorized)

@@ -18,7 +18,6 @@ type User struct {
 	Email     string    `json:"email"`
 	Pass      string    `json:"pass"`
 	Exp       int       `json:"exp"`
-	Campaign  int       `json:"campaign"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
