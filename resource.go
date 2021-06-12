@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -13,7 +14,7 @@ type Resource struct {
 }
 
 // Insert resources into the table if they don't exist.
-func InsertResources(db *sql.DB) {
+func InsertResources(ctx context.Context, db *sql.DB) {
 	resources, err := UnmarshallResourcesJson()
 	if err != nil {
 		log.Fatalf("insert resources error: %v\n", err)
@@ -22,11 +23,11 @@ func InsertResources(db *sql.DB) {
 	for _, resource := range resources {
 		var id int
 
-		err := db.QueryRow("SELECT id FROM resource WHERE id = ?", resource.ID).Scan(&id)
+		err := db.QueryRowContext(ctx, "SELECT id FROM resource WHERE id = ? FOR UPDATE", resource.ID).Scan(&id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				query := "INSERT INTO resource (id, name) VALUES (?, ?)"
-				_, err := db.Exec(query, resource.ID, resource.Name)
+				_, err := db.ExecContext(ctx, query, resource.ID, resource.Name)
 				if err != nil {
 					log.Fatalln("insert resources error:", err)
 				}
