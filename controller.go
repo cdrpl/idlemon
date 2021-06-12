@@ -109,12 +109,13 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		log.Printf("campaign collect error: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
+		// commit
+		if err := tx.Commit(); err != nil {
+			log.Printf("campaign collect error: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
 	res := CampaignCollectRes{
