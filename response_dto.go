@@ -9,3 +9,9 @@ type SignInRes struct {
 	Campaign      Campaign       `json:"campaign"`
 	Resources     []Resource     `json:"resources"`
 }
+
+type CampaignCollectRes struct {
+	Exp       int `json:"exp"`
+	Gold      int `json:"gold"`
+	ExpStones int `json:"expStones"`
+}

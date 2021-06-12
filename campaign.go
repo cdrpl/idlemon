@@ -42,3 +42,12 @@ func GetCampaign(ctx context.Context, db *sql.DB, userID int) (Campaign, error) 
 
 	return campaign, err
 }
+
+func GetCampaignLock(ctx context.Context, db *sql.Tx, userID int) (Campaign, error) {
+	campaign := Campaign{UserID: userID}
+
+	query := "SELECT id, level, last_collected_at FROM campaign WHERE user_id = ? FOR UPDATE"
+	err := db.QueryRowContext(ctx, query, userID).Scan(&campaign.ID, &campaign.Level, &campaign.LastCollectedAt)
+
+	return campaign, err
+}

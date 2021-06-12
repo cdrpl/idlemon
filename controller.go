@@ -54,6 +54,52 @@ func (c Controller) NotFound(w http.ResponseWriter, r *http.Request) {
 	ErrRes(w, http.StatusNotFound)
 }
 
+/* Campaign Routes */
+
+func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	userID := GetUserID(r)
+
+	tx, err := c.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("campaign collect error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+	}
+	defer tx.Rollback()
+
+	campaign, err := GetCampaignLock(r.Context(), tx, userID)
+	if err != nil {
+		log.Printf("campaign collect error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	exp, gold, expStones := campaign.Collect()
+
+	if exp > 0 || gold > 0 || expStones > 0 {
+		_, err = tx.ExecContext(r.Context(), "UPDATE campaign SET last_collected_at = ? WHERE id = ?", campaign.LastCollectedAt, campaign.ID)
+		if err != nil {
+			log.Printf("campaign collect error: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("campaign collect error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	res := CampaignCollectRes{
+		Exp:       exp,
+		Gold:      gold,
+		ExpStones: expStones,
+	}
+
+	log.Printf("user %v has collected resources: %v\n", userID, res)
+	JsonRes(w, res)
+}
+
 /* Unit Routes */
 
 // Toggle a unit's lock. Only works on units owned by the user.

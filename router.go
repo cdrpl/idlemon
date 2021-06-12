@@ -27,6 +27,9 @@ func CreateRouter(db *sql.DB, rdb *redis.Client, wsHub *WsHub) *httprouter.Route
 	router.GET("/version", controller.Version)
 	router.GET("/robots.txt", controller.Robots)
 
+	// campaign routes
+	router.PUT("/campaign/collect", auth(controller.CampaignCollect))
+
 	// unit routes
 	router.PUT("/unit/:id/toggle-lock", auth(controller.UnitToggleLock))
 
