@@ -25,9 +25,9 @@ func (c *Campaign) Collect() (exp int, gold int, expStone int) {
 	}
 
 	if timeDiff > 1 {
-		exp = timeDiff * (CAMPAIGN_EXP + (c.Level / 5 * CAMPAIGN_INCREASE))
-		gold = timeDiff * (CAMPAIGN_GOLD + (c.Level / 5 * CAMPAIGN_INCREASE))
-		expStone = timeDiff * (CAMPAIGN_EXP_STONE + (c.Level / 5 * CAMPAIGN_INCREASE))
+		exp = timeDiff * (CAMPAIGN_EXP_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_GROWTH))
+		gold = timeDiff * (CAMPAIGN_GOLD_PER_SEC + (c.Level / 5 * CAMPAIGN_GOLD_GROWTH))
+		expStone = timeDiff * (CAMPAIGN_EXP_STONE_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_STONE_GROWTH))
 		c.LastCollectedAt = now
 	}
 
