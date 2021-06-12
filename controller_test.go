@@ -21,7 +21,7 @@ import (
 
 /* App Routes */
 
-func TestHealthCheck(t *testing.T) {
+func TestHealthCheckRoute(t *testing.T) {
 	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/", nil)
@@ -45,7 +45,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 }
 
-func TestVersion(t *testing.T) {
+func TestVersionRoute(t *testing.T) {
 	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/version", nil)
@@ -72,7 +72,7 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-func TestRobots(t *testing.T) {
+func TestRobotsRoute(t *testing.T) {
 	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/robots.txt", nil)
@@ -99,7 +99,7 @@ func TestRobots(t *testing.T) {
 	}
 }
 
-func TestNotFound(t *testing.T) {
+func TestNotFoundRoute(t *testing.T) {
 	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
 
 	req, err := http.NewRequest("GET", "/invalid-route", nil)
@@ -125,7 +125,7 @@ func TestNotFound(t *testing.T) {
 
 /* Unit Routes */
 
-func TestUnitLock(t *testing.T) {
+func TestUnitLockRoute(t *testing.T) {
 	db := CreateDBConn()
 	rdb := CreateRedisClient()
 	router := CreateRouterTest(db, rdb)
@@ -206,7 +206,7 @@ func TestUnitLock(t *testing.T) {
 
 /* User Routes */
 
-func TestSignUp(t *testing.T) {
+func TestUserSignUpRoute(t *testing.T) {
 	db := CreateDBConn()
 	router := CreateRouterTest(db, CreateRedisClient())
 
@@ -294,7 +294,7 @@ func TestSignUp(t *testing.T) {
 	}
 }
 
-func TestSignIn(t *testing.T) {
+func TestUserSignInRoute(t *testing.T) {
 	db := CreateDBConn()
 	rdb := CreateRedisClient()
 	router := CreateRouterTest(db, rdb)
@@ -404,7 +404,7 @@ func TestSignIn(t *testing.T) {
 	}
 }
 
-func TestUserRename(t *testing.T) {
+func TestUserRenameRoute(t *testing.T) {
 	method := "PUT"
 	url := "/user/rename"
 
