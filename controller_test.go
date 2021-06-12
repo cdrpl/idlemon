@@ -348,6 +348,16 @@ func TestSignIn(t *testing.T) {
 	if _, ok := m["resources"]; !ok {
 		t.Error("sign in response didn't have a resources property")
 	}
+
+	if _, ok := m["campaign"]; !ok {
+		t.Error("sign in response didn't have a campaign property")
+	} else {
+		campaign := m["campaign"].(map[string]interface{})
+
+		if campaign["level"].(float64) == 0 {
+			t.Errorf("campaign needs to be returned on user sign in, received: %v", campaign)
+		}
+	}
 }
 
 func TestUserRename(t *testing.T) {

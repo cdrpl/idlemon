@@ -167,6 +167,14 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
+	// get campaign
+	campaign, err := GetCampaign(r.Context(), c.db, user.ID)
+	if err != nil {
+		log.Printf("fetch campaign error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	user.Email = signInReq.Email
 	user.Pass = ""
 
@@ -175,6 +183,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		User:          user,
 		Units:         units,
 		UserResources: userResources,
+		Campaign:      campaign,
 	}
 
 	log.Printf("user sign in: %v\n", signInReq.Email)

@@ -6,4 +6,5 @@ type SignInRes struct {
 	User          User           `json:"user"`
 	Units         []Unit         `json:"units"`
 	UserResources []UserResource `json:"resources"`
+	Campaign      Campaign       `json:"campaign"`
 }
