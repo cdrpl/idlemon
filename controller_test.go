@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"golang.org/x/crypto/bcrypt"
@@ -120,6 +121,122 @@ func TestNotFoundRoute(t *testing.T) {
 	expect := string(bytes) + "\n"
 	if rr.Body.String() != expect {
 		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
+	}
+}
+
+/* Campaign Routes */
+
+func TestCampaignCollectRoute(t *testing.T) {
+	db := CreateDBConn()
+	rdb := CreateRedisClient()
+	router := CreateRouterTest(db, rdb)
+
+	AuthTest(t, router, "PUT", "/campaign/collect")
+
+	token, user, err := AuthenticatedUser(db, rdb)
+	if err != nil {
+		t.Fatalf("fail to create test user: %v", err)
+	}
+
+	req := httptest.NewRequest("PUT", "/campaign/collect", nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	var res CampaignCollectRes
+	err = json.Unmarshal(rr.Body.Bytes(), &res)
+	if err != nil {
+		t.Fatalf("fail to unmarshall response body: %v", err)
+	}
+
+	if res.Exp != 0 || res.Gold != 0 || res.ExpStones != 0 {
+		t.Fatalf("collected resources should be 0: %v", res)
+	}
+
+	past := time.Now().Add(-time.Second * 10)
+	query := "UPDATE campaign SET last_collected_at = ? WHERE user_id = ?"
+	_, err = db.Exec(query, past, user.ID)
+	if err != nil {
+		t.Fatalf("update campaign error: %v", err)
+	}
+
+	req = httptest.NewRequest("PUT", "/campaign/collect", nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	rr = httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	_ = json.Unmarshal(rr.Body.Bytes(), &res)
+
+	// check exp
+	expectExp := 10 * CAMPAIGN_EXP_PER_SEC
+	if res.Exp != expectExp {
+		t.Errorf("invalid exp value, expect %v, receive %v", expectExp, res.Exp)
+	}
+
+	var expScan int
+	query = "SELECT exp FROM user WHERE id = ?"
+	err = db.QueryRow(query, user.ID).Scan(&expScan)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if expScan != expectExp {
+		t.Errorf("exp in database did not match, expect %v, receive %v", expectExp, expScan)
+	}
+
+	// check gold
+	expectGold := 10 * CAMPAIGN_GOLD_PER_SEC
+	if res.Gold != expectGold {
+		t.Errorf("invalid gold value, expect %v, receive %v", expectGold, res.Gold)
+	}
+
+	var goldScan int
+	query = "SELECT amount FROM user_resource WHERE (user_id = ? AND resource_id = ?)"
+	err = db.QueryRow(query, user.ID, RESOURCE_GOLD).Scan(&goldScan)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if goldScan != expectGold {
+		t.Errorf("gold in database did not match, expect %v, receive %v", expectGold, goldScan)
+	}
+
+	// check exp stones
+	expectStone := 10 * CAMPAIGN_EXP_STONE_PER_SEC
+	if res.ExpStones != expectStone {
+		t.Errorf("invalid gold value, expect %v, receive %v", expectStone, res.ExpStones)
+	}
+
+	var stoneScan int
+	query = "SELECT amount FROM user_resource WHERE (user_id = ? AND resource_id = ?)"
+	err = db.QueryRow(query, user.ID, RESOURCE_EXP_STONE).Scan(&stoneScan)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if stoneScan != expectStone {
+		t.Errorf("exp stone in database did not match, expect %v, receive %v", expectStone, stoneScan)
+	}
+
+	// check last collected at
+	var timeScan time.Time
+	err = db.QueryRow("SELECT last_collected_at FROM campaign WHERE user_id = ?", user.ID).Scan(&timeScan)
+	if err != nil {
+		t.Error(err)
+	}
+
+	timeDiff := time.Since(timeScan)
+
+	if timeDiff > time.Second {
+		t.Errorf("last_collected_at in database not correct, expect %v, receive %v", time.Now().UTC().Round(time.Second), timeScan)
 	}
 }
 
