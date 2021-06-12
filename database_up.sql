@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS user (
     email VARCHAR(255) NOT NULL,
     pass VARCHAR(255) NOT NULL,
     exp INT UNSIGNED NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL,
 
     CONSTRAINT name_unique UNIQUE (name),
     CONSTRAINT email_unique UNIQUE (email)
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS campaign (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     user_id INT UNSIGNED NOT NULL,
     level INT UNSIGNED NOT NULL DEFAULT 1,
-    last_collected_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    last_collected_at TIMESTAMP NOT NULL,
 
     CONSTRAINT user_id_unique UNIQUE (user_id),
     FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE CASCADE ON DELETE CASCADE

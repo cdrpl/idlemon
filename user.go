@@ -35,15 +35,18 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 	defer tx.Rollback()
 
 	var result sql.Result
+	now := time.Now()
 
 	// if inserting admin user, insert the ID, every other account uses auto increment ID
 	if name == ADMIN_NAME {
-		result, err = tx.Exec("INSERT INTO user (id, name, email, pass) VALUES (?, ?, ?, ?)", ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL, string(hash))
+		query := "INSERT INTO user (id, name, email, pass, created_at) VALUES (?, ?, ?, ?, ?)"
+		result, err = tx.ExecContext(ctx, query, ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL, string(hash), now)
 		if err != nil {
 			log.Fatalln("insert admin user error:", err)
 		}
 	} else {
-		result, err = tx.ExecContext(ctx, "INSERT INTO user (name, email, pass) VALUES (?, ?, ?)", name, email, string(hash))
+		query := "INSERT INTO user (name, email, pass, created_at) VALUES (?, ?, ?, ?)"
+		result, err = tx.ExecContext(ctx, query, name, email, string(hash), now)
 		if err != nil {
 			return 0, err
 		}
@@ -55,7 +58,8 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 	}
 
 	// insert campaign row
-	_, err = tx.ExecContext(ctx, "INSERT INTO campaign (user_id) VALUES (?)", id)
+	query := "INSERT INTO campaign (user_id, last_collected_at) VALUES (?, ?)"
+	_, err = tx.ExecContext(ctx, query, id, now)
 	if err != nil {
 		return 0, err
 	}
