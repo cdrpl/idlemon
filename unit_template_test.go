@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
-	. "github.com/cdrpl/idlemon"
+	. "github.com/cdrpl/idlemon-server"
 )
 
 func TestUnitTemplateCount(t *testing.T) {

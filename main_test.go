@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	. "github.com/cdrpl/idlemon"
+	. "github.com/cdrpl/idlemon-server"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"

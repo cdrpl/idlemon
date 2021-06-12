@@ -16,7 +16,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"golang.org/x/crypto/bcrypt"
 
-	. "github.com/cdrpl/idlemon"
+	. "github.com/cdrpl/idlemon-server"
 )
 
 /* App Routes */

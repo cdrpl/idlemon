@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	. "github.com/cdrpl/idlemon"
+	. "github.com/cdrpl/idlemon-server"
 )
 
 func TestSignUpReqTags(t *testing.T) {

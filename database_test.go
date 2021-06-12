@@ -3,7 +3,7 @@ package main_test
 import (
 	"testing"
 
-	. "github.com/cdrpl/idlemon"
+	. "github.com/cdrpl/idlemon-server"
 )
 
 func BenchmarkCreateDBConn(b *testing.B) {

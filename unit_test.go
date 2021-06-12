@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	. "github.com/cdrpl/idlemon"
+	. "github.com/cdrpl/idlemon-server"
 )
 
 func TestInsertUnit(t *testing.T) {
