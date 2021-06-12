@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS user_resource (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     user_id INT UNSIGNED NOT NULL,
     resource_id INT UNSIGNED NOT NULL,
-    amount INT UNSIGNED NOT NULL,
+    amount INT UNSIGNED NOT NULL DEFAULT 0,
 
     CONSTRAINT user_id_resource_id_unique UNIQUE (user_id, resource_id),
     FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE CASCADE ON DELETE CASCADE,
