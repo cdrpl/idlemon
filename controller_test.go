@@ -324,6 +324,11 @@ func TestSignIn(t *testing.T) {
 		t.Errorf("fail to unmarshal sign in response: %v", err)
 	}
 
+	// token should not be empty
+	if signInRes.Token == "" {
+		t.Error("token was empty")
+	}
+
 	// id should be valid
 	if signInRes.User.ID != user.ID {
 		t.Errorf("invalid id in response, expected: %v, received: %v", user.ID, signInRes.User.ID)
@@ -337,6 +342,15 @@ func TestSignIn(t *testing.T) {
 	// sign in response should have no password
 	if signInRes.User.Pass != "" {
 		t.Errorf("response should have no password, received: %v", signInRes.User.Pass)
+	}
+
+	if len(signInRes.UserResources) == 0 {
+		t.Error("userResources should not be empty")
+	}
+
+	// campaign should not have level 0
+	if signInRes.Campaign.Level == 0 {
+		t.Errorf("campaign should not have level 0, received: %v", signInRes.Campaign)
 	}
 
 	// api token should exist
@@ -379,12 +393,6 @@ func TestSignIn(t *testing.T) {
 
 	if _, ok := m["campaign"]; !ok {
 		t.Error("sign in response didn't have a campaign property")
-	} else {
-		campaign := m["campaign"].(map[string]interface{})
-
-		if campaign["level"].(float64) == 0 {
-			t.Errorf("campaign needs to be returned on user sign in, received: %v", campaign)
-		}
 	}
 }
 
