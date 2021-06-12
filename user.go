@@ -54,10 +54,23 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 		return 0, err
 	}
 
-	// insert campaign table
+	// insert campaign row
 	_, err = tx.ExecContext(ctx, "INSERT INTO campaign (user_id) VALUES (?)", id)
 	if err != nil {
 		return 0, err
+	}
+
+	// insert user resource rows
+	resources, err := UnmarshallResourcesJson()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, resource := range resources {
+		_, err := tx.ExecContext(ctx, "INSERT INTO user_resource (user_id, resource_id) VALUES (?, ?)", id, resource.ID)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
