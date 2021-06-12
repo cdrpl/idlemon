@@ -25,6 +25,13 @@ const (
 	RUN_MIGRATIONS = "true"
 )
 
+const (
+	CAMPAIGN_GOLD      = 20 // The amount of gold earned every second on campaign level 1
+	CAMPAIGN_EXP       = 5  // The amount of exp earned every second on campaign level 1
+	CAMPAIGN_EXP_STONE = 2  // The amount of exp stones earned every second on campaign level 1
+	CAMPAIGN_INCREASE  = 1  // Resources gained from campaign increase by this value every 5 levels
+)
+
 // Unit types, must have the same value as their table row IDs.
 const (
 	UNIT_TYPE_FOREST = iota + 1
