@@ -373,8 +373,8 @@ func TestSignIn(t *testing.T) {
 		t.Error("sign in response didn't have a units property")
 	}
 
-	if _, ok := m["resources"]; !ok {
-		t.Error("sign in response didn't have a resources property")
+	if _, ok := m["userResources"]; !ok {
+		t.Error("sign in response didn't have a userResources property")
 	}
 
 	if _, ok := m["campaign"]; !ok {
