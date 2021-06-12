@@ -14,14 +14,12 @@ type Resource struct {
 
 // Insert resources into the table if they don't exist.
 func InsertResources(db *sql.DB) {
-	var data map[string][]Resource
-
-	err := json.Unmarshal([]byte(resourcesJson), &data)
+	resources, err := UnmarshallResourcesJson()
 	if err != nil {
-		log.Fatalln("unmarshall resources json error:", err)
+		log.Fatalf("insert resources error: %v\n", err)
 	}
 
-	for _, resource := range data["resources"] {
+	for _, resource := range resources {
 		var id int
 
 		err := db.QueryRow("SELECT id FROM resource WHERE id = ?", resource.ID).Scan(&id)
@@ -39,4 +37,16 @@ func InsertResources(db *sql.DB) {
 			}
 		}
 	}
+}
+
+// Unmarshall the embeded resourcesJson string.
+func UnmarshallResourcesJson() ([]Resource, error) {
+	var data map[string][]Resource
+
+	err := json.Unmarshal([]byte(resourcesJson), &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data["resources"], nil
 }
