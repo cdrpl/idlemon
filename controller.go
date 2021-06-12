@@ -82,6 +82,33 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		// update exp
+		query := "UPDATE user SET exp = exp + ? WHERE id = ?"
+		_, err = tx.ExecContext(r.Context(), query, exp, userID)
+		if err != nil {
+			log.Printf("campaign collect error: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// gold
+		query = "UPDATE user_resource SET amount = amount + ? WHERE (resource_id = ? AND user_id = ?)"
+		_, err = tx.ExecContext(r.Context(), query, gold, RESOURCE_GOLD, userID)
+		if err != nil {
+			log.Printf("campaign collect error: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// exp stone
+		query = "UPDATE user_resource SET amount = amount + ? WHERE (resource_id = ? AND user_id = ?)"
+		_, err = tx.ExecContext(r.Context(), query, expStones, RESOURCE_EXP_STONE, userID)
+		if err != nil {
+			log.Printf("campaign collect error: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
