@@ -13,10 +13,16 @@ type Campaign struct {
 	LastCollectedAt time.Time `json:"lastCollectedAt"`
 }
 
-// Returns the amount of resources collectible and sets last collected at to now.
+// Returns the amount of resources that can be collected and sets last collected at to now.
 func (c *Campaign) Collect() (exp int, gold int, expStone int) {
 	now := time.Now()
 	timeDiff := int(now.Sub(c.LastCollectedAt).Seconds())
+
+	// limit stockpile to 24 hours
+	max := int((time.Hour * 24).Seconds())
+	if timeDiff > max {
+		timeDiff = max
+	}
 
 	if timeDiff > 1 {
 		exp = timeDiff * (CAMPAIGN_EXP + (c.Level / 5 * CAMPAIGN_INCREASE))
