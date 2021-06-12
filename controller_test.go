@@ -231,12 +231,40 @@ func TestSignUp(t *testing.T) {
 
 	// user should exist
 	user := User{}
-	err := db.QueryRow("SELECT name, email, pass FROM user WHERE name = ?", userInsert.Name).Scan(&user.Name, &user.Email, &user.Pass)
+	err := db.QueryRow("SELECT id, name, email, pass FROM user WHERE name = ?", userInsert.Name).Scan(&user.ID, &user.Name, &user.Email, &user.Pass)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			t.Fatal("user was not present in the database")
 		} else {
 			t.Fatalf("database query error: %v", err)
+		}
+	}
+
+	// campaign row should exist
+	var scanCache int
+	err = db.QueryRow("SELECT id FROM campaign WHERE user_id = ?", user.ID).Scan(&scanCache)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			t.Fatal("campaign row was not inserted")
+		} else {
+			t.Fatalf("database query error: %v", err)
+		}
+	}
+
+	// user_resource rows should exist
+	resources, err := UnmarshallResourcesJson()
+	if err != nil {
+		t.Fatalf("unmarshall resources json error: %v", err)
+	}
+
+	for _, resource := range resources {
+		err = db.QueryRow("SELECT id FROM user_resource WHERE (user_id = ? AND resource_id = ?)", user.ID, resource.ID).Scan(&scanCache)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				t.Fatalf("user_resource row was not inserted: resource_id %v", resource.ID)
+			} else {
+				t.Fatalf("database query error: %v", err)
+			}
 		}
 	}
 
