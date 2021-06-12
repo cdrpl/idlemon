@@ -353,6 +353,10 @@ func TestSignIn(t *testing.T) {
 		t.Errorf("campaign should not have level 0, received: %v", signInRes.Campaign)
 	}
 
+	if len(signInRes.Resources) == 0 {
+		t.Error("resources should not be empty")
+	}
+
 	// api token should exist
 	idS := fmt.Sprintf("%d", signInRes.User.ID)
 	result, err := rdb.Get(context.Background(), idS).Result()
@@ -393,6 +397,10 @@ func TestSignIn(t *testing.T) {
 
 	if _, ok := m["campaign"]; !ok {
 		t.Error("sign in response didn't have a campaign property")
+	}
+
+	if _, ok := m["resources"]; !ok {
+		t.Error("sign in response didn't have a resources property")
 	}
 }
 

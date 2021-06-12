@@ -175,6 +175,14 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
+	// list of resources
+	resources, err := UnmarshallResourcesJson()
+	if err != nil {
+		log.Printf("fetch campaign error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	user.Email = signInReq.Email
 	user.Pass = ""
 
@@ -184,6 +192,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		Units:         units,
 		UserResources: userResources,
 		Campaign:      campaign,
+		Resources:     resources,
 	}
 
 	log.Printf("user sign in: %v\n", signInReq.Email)
