@@ -8,6 +8,10 @@ This is a game server for an online idle game. Most player actions are received 
 -   MariaDB (10.x)
 -   Redis (6.x)
 
+### Idlemon Client
+
+The [Idlemon client](https://github.com/cdrpl/idlemon-client) can be used to interact with the server.
+
 ### Documentation
 
 -   [API Documentation](https://documenter.getpostman.com/view/12308444/T1LLE7wE)
