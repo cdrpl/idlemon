@@ -35,7 +35,7 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 	defer tx.Rollback()
 
 	var result sql.Result
-	now := time.Now()
+	now := time.Now().UTC().Round(time.Second)
 
 	// if inserting admin user, insert the ID, every other account uses auto increment ID
 	if name == ADMIN_NAME {

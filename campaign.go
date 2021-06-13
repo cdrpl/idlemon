@@ -27,7 +27,7 @@ func (c *Campaign) Collect() (exp int, gold int, expStone int) {
 		exp = timeDiffSec * (CAMPAIGN_EXP_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_GROWTH))
 		gold = timeDiffSec * (CAMPAIGN_GOLD_PER_SEC + (c.Level / 5 * CAMPAIGN_GOLD_GROWTH))
 		expStone = timeDiffSec * (CAMPAIGN_EXP_STONE_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_STONE_GROWTH))
-		c.LastCollectedAt = time.Now()
+		c.LastCollectedAt = time.Now().UTC().Round(time.Second)
 	}
 
 	return
