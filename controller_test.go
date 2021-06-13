@@ -227,16 +227,18 @@ func TestCampaignCollectRoute(t *testing.T) {
 	}
 
 	// check last collected at
+	if time.Since(res.LastCollectedAt) > time.Second {
+		t.Errorf("more than a second has passed since LastCollectedAt: %v", res.LastCollectedAt)
+	}
+
 	var timeScan time.Time
 	err = db.QueryRow("SELECT last_collected_at FROM campaign WHERE user_id = ?", user.ID).Scan(&timeScan)
 	if err != nil {
 		t.Error(err)
 	}
 
-	timeDiff := time.Since(timeScan)
-
-	if timeDiff > time.Second {
-		t.Errorf("last_collected_at in database not correct, expect %v, receive %v", time.Now().UTC().Round(time.Second), timeScan)
+	if timeScan != res.LastCollectedAt {
+		t.Errorf("last_collected_at in database not correct, expect %v, receive %v", res.LastCollectedAt, timeScan)
 	}
 }
 

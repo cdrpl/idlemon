@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 // Sign in response
 type SignInRes struct {
 	Token         string         `json:"token"`
@@ -11,7 +13,8 @@ type SignInRes struct {
 }
 
 type CampaignCollectRes struct {
-	Exp       int `json:"exp"`
-	Gold      int `json:"gold"`
-	ExpStones int `json:"expStones"`
+	Exp             int       `json:"exp"`
+	Gold            int       `json:"gold"`
+	ExpStones       int       `json:"expStones"`
+	LastCollectedAt time.Time `json:"lastCollectedAt"`
 }

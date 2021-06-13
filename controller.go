@@ -119,9 +119,10 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 	}
 
 	res := CampaignCollectRes{
-		Exp:       exp,
-		Gold:      gold,
-		ExpStones: expStones,
+		Exp:             exp,
+		Gold:            gold,
+		ExpStones:       expStones,
+		LastCollectedAt: campaign.LastCollectedAt,
 	}
 
 	log.Printf("user %v has collected resources: %v\n", userID, res)
