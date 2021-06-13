@@ -19,7 +19,7 @@ func TestCampaignCollect(t *testing.T) {
 
 	exp, gold, expStones := campaign.Collect()
 
-	if campaign.LastCollectedAt != time.Now() {
+	if campaign.LastCollectedAt != time.Now().UTC().Round(time.Second) {
 		t.Errorf("campaign did not set last collected at to now: %v", campaign.LastCollectedAt)
 	}
 
