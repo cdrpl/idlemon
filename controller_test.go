@@ -350,7 +350,8 @@ func TestUserSignUpRoute(t *testing.T) {
 
 	// user should exist
 	user := User{}
-	err := db.QueryRow("SELECT id, name, email, pass FROM user WHERE name = ?", userInsert.Name).Scan(&user.ID, &user.Name, &user.Email, &user.Pass)
+	query := "SELECT id, name, email, pass, created_at FROM user WHERE name = ?"
+	err := db.QueryRow(query, userInsert.Name).Scan(&user.ID, &user.Name, &user.Email, &user.Pass, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			t.Fatal("user was not present in the database")
@@ -401,6 +402,11 @@ func TestUserSignUpRoute(t *testing.T) {
 	err = bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(userInsert.Pass))
 	if err != nil {
 		t.Error("password was not correctly hashed")
+	}
+
+	// created at should be accurate
+	if time.Since(user.CreatedAt) > time.Second {
+		t.Errorf("more than a second has passed since user created at: %v", user.CreatedAt)
 	}
 
 	// should return 400 with invalid json
