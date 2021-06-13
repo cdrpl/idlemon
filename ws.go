@@ -128,12 +128,14 @@ func (h *WsHub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
+				log.Println("websocket connection closed")
 			}
 
 		case message := <-h.broadcast:
 			for client := range h.clients {
 				select {
 				case client.send <- message:
+
 				default:
 					close(client.send)
 					delete(h.clients, client)
