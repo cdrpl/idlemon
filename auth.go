@@ -15,7 +15,7 @@ func ValidateApiToken(ctx context.Context, id string, token string, rdb *redis.C
 		if errors.Is(err, redis.Nil) {
 			return false, nil
 		} else {
-			return false, fmt.Errorf("validate api token error: %v", err)
+			return false, err
 		}
 	}
 
@@ -26,12 +26,12 @@ func ValidateApiToken(ctx context.Context, id string, token string, rdb *redis.C
 func CreateApiToken(ctx context.Context, rdb *redis.Client, userId int) (string, error) {
 	token, err := GenerateToken(API_TOKEN_LEN)
 	if err != nil {
-		return "", fmt.Errorf("create api token error: %v", err)
+		return "", err
 	}
 
 	cmd := rdb.SetEX(ctx, fmt.Sprintf("%d", userId), token, API_TOKEN_TTL)
 	if cmd.Err() != nil {
-		return "", fmt.Errorf("create api token error: %v", err)
+		return "", err
 	}
 
 	return token, nil

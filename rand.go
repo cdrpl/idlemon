@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"log"
 	"math"
 	"math/big"
@@ -12,15 +12,15 @@ import (
 
 // Generate a random string.
 func GenerateToken(length int) (string, error) {
-	if length <= 0 {
-		return "", fmt.Errorf("cannot generate a token with length of: %v", length)
+	if length < 2 {
+		return "", errors.New("cannot generate a token with length less than 2")
 	}
 
 	bytes := make([]byte, length/2)
 
 	_, err := rand.Read(bytes)
 	if err != nil {
-		return "", fmt.Errorf("generate token error: %v", err)
+		return "", err
 	}
 
 	return hex.EncodeToString(bytes), nil
