@@ -19,13 +19,8 @@ type DailyQuest struct {
 	Required    int    `json:"required"`
 }
 
-func InsertDailyQuests(ctx context.Context, db *sql.DB) {
-	dailyQuests, err := UnmarshallDailyQuestsJson()
-	if err != nil {
-		log.Fatalf("insert daily quests error: %v\n", err)
-	}
-
-	for _, dailyQuest := range dailyQuests {
+func InsertDailyQuests(ctx context.Context, db *sql.DB, dc *DataCache) {
+	for _, dailyQuest := range dc.DailyQuests {
 		var id int
 
 		err := db.QueryRowContext(ctx, "SELECT id FROM daily_quest WHERE id = ? FOR UPDATE", dailyQuest.ID).Scan(&id)

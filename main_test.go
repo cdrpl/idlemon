@@ -17,6 +17,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+var router *httprouter.Router
+var dataCache *DataCache
+var db *sql.DB
+var rdb *redis.Client
+
 func TestMain(m *testing.M) {
 	log.SetOutput(ioutil.Discard)
 
@@ -24,11 +29,29 @@ func TestMain(m *testing.M) {
 	os.Setenv("DB_NAME", "test")
 	LoadEnv(ENV_FILE, VERSION)
 
-	db := CreateDBConn()
+	dataCache = &DataCache{}
+
+	if err := dataCache.Load(); err != nil {
+		log.SetOutput(os.Stdout)
+		log.Fatalf("fail to load data cache: %v\n", err)
+	}
+
+	db = CreateDBConn()
 	DropTables(db)
-	InitDatabase(db)
+	InitDatabase(context.Background(), db, dataCache)
+
+	rdb = CreateRedisClient()
 
 	SeedRand()
+
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  WS_READ_BUFFER_SIZE,
+		WriteBufferSize: WS_WRITE_BUFFER_SIZE,
+	}
+	wsHub := CreateWsHub(upgrader)
+	go wsHub.Run()
+
+	router = CreateRouter(db, rdb, dataCache, wsHub)
 
 	os.Exit(m.Run())
 }
@@ -66,7 +89,7 @@ func InsertRandUser(db *sql.DB) (User, error) {
 		return User{}, err
 	}
 
-	id, err := InsertUser(context.Background(), db, user.Name, user.Email, user.Pass)
+	id, err := InsertUser(context.Background(), db, dataCache, user.Name, user.Email, user.Pass)
 	if err != nil {
 		return User{}, err
 	}
@@ -114,16 +137,4 @@ func AuthTest(t *testing.T, router *httprouter.Router, method string, url string
 
 func SetAuthorization(req *http.Request, userID int, token string) {
 	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", userID, token))
-}
-
-// Helper method to create a router with a WebSocket hub.
-func CreateRouterTest(db *sql.DB, rdb *redis.Client) *httprouter.Router {
-	upgrader := websocket.Upgrader{
-		ReadBufferSize:  WS_READ_BUFFER_SIZE,
-		WriteBufferSize: WS_WRITE_BUFFER_SIZE,
-	}
-	wsHub := CreateWsHub(upgrader)
-	go wsHub.Run()
-
-	return CreateRouter(db, rdb, wsHub)
 }

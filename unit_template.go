@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -41,19 +42,11 @@ func UnitTemplates(db *sql.DB) ([]UnitTemplate, error) {
 }
 
 // Insert unit templates from the unit templates json file.
-func InsertUnitTemplates(db *sql.DB) {
-	var data map[string][]UnitTemplate
-
-	err := json.Unmarshal([]byte(unitTemplatesJson), &data)
-	if err != nil {
-		log.Fatalln("unmarshall unit templates error:", err)
-	}
-
-	// insert unit templates if they don't exist
-	for _, template := range data["unitTemplates"] {
+func InsertUnitTemplates(ctx context.Context, db *sql.DB, dc *DataCache) {
+	for _, template := range dc.UnitTemplates {
 		var id int
 
-		err := db.QueryRow("SELECT id FROM unit_template WHERE id = ?", template.ID).Scan(&id)
+		err := db.QueryRowContext(ctx, "SELECT id FROM unit_template WHERE id = ?", template.ID).Scan(&id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				query := "INSERT INTO unit_template (type_id, name, hp, atk, def, spd) VALUES (?, ?, ?, ?, ?, ?)"
@@ -70,13 +63,15 @@ func InsertUnitTemplates(db *sql.DB) {
 	}
 }
 
-// Return count of unit templates.
-func UnitTemplateCount(db *sql.DB) (int, error) {
-	count := 0
+func UnMarshallUnitTemplatesJson() ([]UnitTemplate, error) {
+	var data map[string][]UnitTemplate
 
-	err := db.QueryRow("SELECT COUNT(id) FROM unit_template").Scan(&count)
+	err := json.Unmarshal([]byte(unitTemplatesJson), &data)
+	if err != nil {
+		return nil, err
+	}
 
-	return count, err
+	return data["unitTemplates"], nil
 }
 
 // Return a random unit template ID.

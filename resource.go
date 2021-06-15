@@ -14,13 +14,8 @@ type Resource struct {
 }
 
 // Insert resources into the table if they don't exist.
-func InsertResources(ctx context.Context, db *sql.DB) {
-	resources, err := UnmarshallResourcesJson()
-	if err != nil {
-		log.Fatalf("insert resources error: %v\n", err)
-	}
-
-	for _, resource := range resources {
+func InsertResources(ctx context.Context, db *sql.DB, dc *DataCache) {
+	for _, resource := range dc.Resources {
 		var id int
 
 		err := db.QueryRowContext(ctx, "SELECT id FROM resource WHERE id = ? FOR UPDATE", resource.ID).Scan(&id)

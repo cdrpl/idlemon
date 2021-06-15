@@ -9,11 +9,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func CreateRouter(db *sql.DB, rdb *redis.Client, wsHub *WsHub) *httprouter.Router {
+func CreateRouter(db *sql.DB, rdb *redis.Client, dc *DataCache, wsHub *WsHub) *httprouter.Router {
 	router := httprouter.New()
 
 	// controllers
-	controller := CreateController(db, rdb)
+	controller := CreateController(db, rdb, dc)
 
 	// middleware
 	auth := CreateRequireTokenMiddleware(rdb).Middleware

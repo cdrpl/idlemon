@@ -34,13 +34,13 @@ func CreateDBConn() *sql.DB {
 	return db
 }
 
-func InitDatabase(db *sql.DB) {
+func InitDatabase(ctx context.Context, db *sql.DB, dc *DataCache) {
 	CreateDatabaseTables(db)
-	InsertUnitTypes(db)
-	InsertUnitTemplates(db)
-	InsertResources(context.Background(), db)
-	InsertDailyQuests(context.Background(), db)
-	InsertAdminUser(context.Background(), db)
+	InsertUnitTypes(ctx, db, dc)
+	InsertUnitTemplates(ctx, db, dc)
+	InsertResources(ctx, db, dc)
+	InsertDailyQuests(ctx, db, dc)
+	InsertAdminUser(ctx, db, dc)
 }
 
 func CreateDatabaseTables(db *sql.DB) {

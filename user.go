@@ -22,7 +22,7 @@ type User struct {
 }
 
 // Will hash the user password then insert into the database. Returns the last insert ID.
-func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass string) (int, error) {
+func InsertUser(ctx context.Context, db *sql.DB, dc *DataCache, name string, email string, pass string) (int, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
@@ -52,39 +52,29 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 		}
 	}
 
-	id, err := result.LastInsertId()
+	userID, err := result.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
 
 	// insert campaign row
 	query := "INSERT INTO campaign (user_id, last_collected_at) VALUES (?, ?)"
-	_, err = tx.ExecContext(ctx, query, id, now)
+	_, err = tx.ExecContext(ctx, query, userID, now)
 	if err != nil {
 		return 0, err
 	}
 
 	// insert user resource rows
-	resources, err := UnmarshallResourcesJson()
-	if err != nil {
-		return 0, err
-	}
-
-	for _, resource := range resources {
-		_, err := tx.ExecContext(ctx, "INSERT INTO user_resource (user_id, resource_id) VALUES (?, ?)", id, resource.ID)
+	for _, resource := range dc.Resources {
+		_, err := tx.ExecContext(ctx, "INSERT INTO user_resource (user_id, resource_id) VALUES (?, ?)", userID, resource.ID)
 		if err != nil {
 			return 0, err
 		}
 	}
 
 	// insert user daily quests
-	dailyQuests, err := UnmarshallDailyQuestsJson()
-	if err != nil {
-		return 0, err
-	}
-
-	for _, dailyQuest := range dailyQuests {
-		_, err := tx.ExecContext(ctx, "INSERT INTO user_daily_quest (user_id, daily_quest_id) VALUES (?, ?)", id, dailyQuest.ID)
+	for _, dailyQuest := range dc.DailyQuests {
+		_, err := tx.ExecContext(ctx, "INSERT INTO user_daily_quest (user_id, daily_quest_id) VALUES (?, ?)", userID, dailyQuest.ID)
 		if err != nil {
 			return 0, err
 		}
@@ -94,11 +84,11 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 		return 0, err
 	}
 
-	return int(id), nil
+	return int(userID), nil
 }
 
 // Will insert the admin user if it doesn't exist.
-func InsertAdminUser(ctx context.Context, db *sql.DB) {
+func InsertAdminUser(ctx context.Context, db *sql.DB, dc *DataCache) {
 	var id int
 
 	// only insert admin user if no admin user exists
@@ -107,7 +97,7 @@ func InsertAdminUser(ctx context.Context, db *sql.DB) {
 		if errors.Is(err, sql.ErrNoRows) {
 			pass := os.Getenv("ADMIN_PASS")
 
-			_, err := InsertUser(ctx, db, ADMIN_NAME, ADMIN_EMAIL, pass)
+			_, err := InsertUser(ctx, db, dc, ADMIN_NAME, ADMIN_EMAIL, pass)
 			if err != nil {
 				log.Fatalln("insert admin user error:", err)
 			}

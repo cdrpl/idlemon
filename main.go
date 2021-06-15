@@ -34,8 +34,14 @@ func main() {
 		DropTables(db)
 	}
 
+	// init data cache
+	dc := &DataCache{}
+	if err := dc.Load(); err != nil {
+		log.Fatalf("failed to load the data cache: %v\n", err)
+	}
+
 	log.Println("initializing database")
-	InitDatabase(db)
+	InitDatabase(context.Background(), db, dc)
 
 	log.Println("connecting to redis")
 	rdb := CreateRedisClient()
@@ -53,7 +59,7 @@ func main() {
 	port := fmt.Sprintf(":%v", os.Getenv("PORT"))
 	server := &http.Server{
 		Addr:    port,
-		Handler: CreateRouter(db, rdb, wsHub),
+		Handler: CreateRouter(db, rdb, dc, wsHub),
 	}
 	go RunHTTPServer(server)
 

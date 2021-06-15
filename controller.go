@@ -15,13 +15,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateController(db *sql.DB, rdb *redis.Client) Controller {
-	return Controller{db: db, rdb: rdb}
+func CreateController(db *sql.DB, rdb *redis.Client, dc *DataCache) Controller {
+	return Controller{db: db, rdb: rdb, dc: dc}
 }
 
 type Controller struct {
 	db  *sql.DB
 	rdb *redis.Client
+	dc  *DataCache
 }
 
 /* App Routes */
@@ -186,7 +187,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	_, err = InsertUser(r.Context(), c.db, req.Name, req.Email, req.Pass)
+	_, err = InsertUser(r.Context(), c.db, c.dc, req.Name, req.Email, req.Pass)
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -250,14 +251,6 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	// list of resources
-	resources, err := UnmarshallResourcesJson()
-	if err != nil {
-		log.Printf("fetch campaign error: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
 	// update daily sign in quest
 	if err := SignInDailyQuest(r.Context(), c.db, user.ID); err != nil {
 		log.Printf("user sign in daily quest error: %v\n", err)
@@ -274,7 +267,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		Units:         units,
 		UserResources: userResources,
 		Campaign:      campaign,
-		Resources:     resources,
+		Resources:     c.dc.Resources,
 	}
 
 	log.Printf("user sign in: %v\n", signInReq.Email)

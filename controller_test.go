@@ -23,8 +23,6 @@ import (
 /* App Routes */
 
 func TestHealthCheckRoute(t *testing.T) {
-	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
-
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -47,8 +45,6 @@ func TestHealthCheckRoute(t *testing.T) {
 }
 
 func TestVersionRoute(t *testing.T) {
-	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
-
 	req, err := http.NewRequest("GET", "/version", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -74,8 +70,6 @@ func TestVersionRoute(t *testing.T) {
 }
 
 func TestRobotsRoute(t *testing.T) {
-	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
-
 	req, err := http.NewRequest("GET", "/robots.txt", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -101,8 +95,6 @@ func TestRobotsRoute(t *testing.T) {
 }
 
 func TestNotFoundRoute(t *testing.T) {
-	router := CreateRouterTest(CreateDBConn(), CreateRedisClient())
-
 	req, err := http.NewRequest("GET", "/invalid-route", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -127,10 +119,6 @@ func TestNotFoundRoute(t *testing.T) {
 /* Campaign Routes */
 
 func TestCampaignCollectRoute(t *testing.T) {
-	db := CreateDBConn()
-	rdb := CreateRedisClient()
-	router := CreateRouterTest(db, rdb)
-
 	AuthTest(t, router, "PUT", "/campaign/collect")
 
 	token, user, err := AuthenticatedUser(db, rdb)
@@ -245,10 +233,6 @@ func TestCampaignCollectRoute(t *testing.T) {
 /* Unit Routes */
 
 func TestUnitLockRoute(t *testing.T) {
-	db := CreateDBConn()
-	rdb := CreateRedisClient()
-	router := CreateRouterTest(db, rdb)
-
 	AuthTest(t, router, "PUT", "/unit/1/toggle-lock")
 
 	token, user, err := AuthenticatedUser(db, rdb)
@@ -326,9 +310,6 @@ func TestUnitLockRoute(t *testing.T) {
 /* User Routes */
 
 func TestUserSignUpRoute(t *testing.T) {
-	db := CreateDBConn()
-	router := CreateRouterTest(db, CreateRedisClient())
-
 	userInsert := SignUpReq{Name: "name", Email: "name@name.com", Pass: "password"}
 	js, _ := json.Marshal(userInsert)
 
@@ -420,11 +401,6 @@ func TestUserSignUpRoute(t *testing.T) {
 }
 
 func TestUserSignInRoute(t *testing.T) {
-	db := CreateDBConn()
-	rdb := CreateRedisClient()
-	router := CreateRouterTest(db, rdb)
-
-	// insert a test user
 	user, err := InsertRandUser(db)
 	if err != nil {
 		t.Fatalf("fail to create test user: %v", err)
@@ -435,8 +411,8 @@ func TestUserSignInRoute(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/user/sign-in", bytes.NewBuffer(js))
 	rr := httptest.NewRecorder()
-
 	router.ServeHTTP(rr, req)
+
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
 	}
@@ -532,10 +508,6 @@ func TestUserSignInRoute(t *testing.T) {
 func TestUserRenameRoute(t *testing.T) {
 	method := "PUT"
 	url := "/user/rename"
-
-	db := CreateDBConn()
-	rdb := CreateRedisClient()
-	router := CreateRouterTest(db, rdb)
 
 	AuthTest(t, router, method, url)
 
