@@ -11,6 +11,7 @@ type UserDailyQuest struct {
 	UserID       int `json:"userId"`
 	DailyQuestID int `json:"dailyQuestId"`
 	Count        int `json:"count"`
+	IsCollected  int `json:"isCollected"`
 }
 
 // Update the daily quest for user sign in.

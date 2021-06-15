@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS user_daily_quest (
     user_id INT UNSIGNED NOT NULL,
     daily_quest_id INT UNSIGNED NOT NULL,
     count INT UNSIGNED NOT NULL DEFAULT 0,
+    is_collected TINYINT NOT NULL DEFAULT 0,
 
     CONSTRAINT user_id_daily_quest_id_unique UNIQUE (user_id, daily_quest_id),
     FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE CASCADE ON DELETE CASCADE,
