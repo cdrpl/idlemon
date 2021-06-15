@@ -69,3 +69,21 @@ CREATE TABLE IF NOT EXISTS campaign (
     CONSTRAINT user_id_unique UNIQUE (user_id),
     FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS daily_quest (
+    id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    description VARCHAR(255) NOT NULL,
+    required INT UNSIGNED NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_daily_quest (
+    id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    daily_quest_id INT UNSIGNED NOT NULL,
+    count INT UNSIGNED NOT NULL DEFAULT 0,
+
+    CONSTRAINT user_id_daily_quest_id_unique UNIQUE (user_id, daily_quest_id),
+    FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (daily_quest_id) REFERENCES daily_quest(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+

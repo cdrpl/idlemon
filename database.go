@@ -39,6 +39,7 @@ func InitDatabase(db *sql.DB) {
 	InsertUnitTypes(db)
 	InsertUnitTemplates(db)
 	InsertResources(context.Background(), db)
+	InsertDailyQuests(context.Background(), db)
 	InsertAdminUser(context.Background(), db)
 }
 

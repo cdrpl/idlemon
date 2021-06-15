@@ -32,7 +32,7 @@ func InsertResources(ctx context.Context, db *sql.DB) {
 					log.Fatalln("insert resources error:", err)
 				}
 
-				log.Printf("insert resources %+v\n", resource)
+				log.Printf("insert resource %+v\n", resource)
 			} else {
 				log.Fatalln("insert resources error:", err)
 			}

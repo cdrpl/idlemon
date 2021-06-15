@@ -77,6 +77,19 @@ func InsertUser(ctx context.Context, db *sql.DB, name string, email string, pass
 		}
 	}
 
+	// insert user daily quests
+	dailyQuests, err := UnmarshallDailyQuestsJson()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, dailyQuest := range dailyQuests {
+		_, err := tx.ExecContext(ctx, "INSERT INTO user_daily_quest (user_id, daily_quest_id) VALUES (?, ?)", id, dailyQuest.ID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}

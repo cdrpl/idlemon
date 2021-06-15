@@ -258,6 +258,13 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
+	// update daily sign in quest
+	if err := SignInDailyQuest(r.Context(), c.db, user.ID); err != nil {
+		log.Printf("user sign in daily quest error: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	user.Email = signInReq.Email
 	user.Pass = ""
 

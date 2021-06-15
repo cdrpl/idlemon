@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS user_daily_quest;
+DROP TABLE IF EXISTS daily_quest;
 DROP TABLE IF EXISTS campaign;
 DROP TABLE IF EXISTS user_resource;
 DROP TABLE IF EXISTS resource;

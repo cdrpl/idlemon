@@ -1,0 +1,9 @@
+{
+    "dailyQuests": [
+        {
+            "id": 1,
+            "description": "sign in",
+            "required": 1
+        }
+    ]
+}
