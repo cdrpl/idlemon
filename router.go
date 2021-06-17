@@ -30,6 +30,9 @@ func CreateRouter(db *sql.DB, rdb *redis.Client, dc *DataCache, wsHub *WsHub) *h
 	// campaign routes
 	router.PUT("/campaign/collect", auth(controller.CampaignCollect))
 
+	// daily quest routes
+	router.PUT("/daily-quest/:id/complete", auth(controller.DailyQuestComplete))
+
 	// unit routes
 	router.PUT("/unit/:id/toggle-lock", auth(controller.UnitToggleLock))
 

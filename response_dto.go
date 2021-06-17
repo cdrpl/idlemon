@@ -18,3 +18,9 @@ type CampaignCollectRes struct {
 	ExpStones       int       `json:"expStones"`
 	LastCollectedAt time.Time `json:"lastCollectedAt"`
 }
+
+type DailyQuestCompleteRes struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+	Reward  Reward `json:"reward"`
+}

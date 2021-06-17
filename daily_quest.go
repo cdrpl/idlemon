@@ -8,11 +8,6 @@ import (
 	"log"
 )
 
-// Daily quest IDs.
-const (
-	DAILY_QUEST_SIGN_IN = iota + 1
-)
-
 type DailyQuest struct {
 	ID          int    `json:"id"`
 	Description string `json:"description"`

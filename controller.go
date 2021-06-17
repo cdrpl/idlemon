@@ -130,6 +130,65 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 	JsonRes(w, res)
 }
 
+/* Daily Quest Routes */
+
+func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	userID := GetUserID(r)
+
+	questID, err := strconv.Atoi(p.ByName("id"))
+	if err != nil {
+		log.Printf("daily quest complete, quest ID could not be converted to int: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	dailyQuest := c.dc.DailyQuests[questID-1]
+
+	tx, err := c.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Printf("daily quest complete, fail to begin transaction: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback()
+
+	var (
+		id          int
+		count       int
+		isCompleted bool
+	)
+
+	query := "SELECT id, count, is_completed FROM user_daily_quest WHERE (user_id = ? AND daily_quest_id = ?) FOR UPDATE"
+	err = tx.QueryRowContext(r.Context(), query, userID, questID).Scan(&id, &count, &isCompleted)
+	if err != nil {
+		log.Printf("daily quest complete, fail to fetch user_daily_quest row: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if isCompleted {
+		JsonRes(w, DailyQuestCompleteRes{Status: 1, Message: "already completed"})
+		return
+	}
+
+	if count < dailyQuest.Required {
+		JsonRes(w, DailyQuestCompleteRes{Status: 1})
+		return
+	}
+
+	// set count to 0 and is_completed to 1
+
+	// give rewards
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("daily quest complete, failed to commit transaction: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// give response
+}
+
 /* Unit Routes */
 
 // Toggle a unit's lock. Only works on units owned by the user.

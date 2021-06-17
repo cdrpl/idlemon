@@ -53,6 +53,21 @@ const (
 	RESOURCE_EVO_STONE
 )
 
+// Daily quest IDs.
+const (
+	DAILY_QUEST_SIGN_IN = iota + 1
+)
+
+// Amount of daily quest rewards.
+const (
+	DAILY_SIGN_IN_REWARD = 1000
+)
+
+// Constant strings.
+const (
+	GEMS = "gems"
+)
+
 // MariaDB error codes.
 const (
 	ER_DUP_ENTRY = 1062
