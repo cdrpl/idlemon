@@ -25,6 +25,7 @@ A .env file can be used to set environment variables. When the server is startin
 -   `-h` - Will display the list of CLI flags.
 -   `-e [file]` - Use to specify the location of a .env file.
 -   `-e nil` - This will stop the server from attempting to load a .env file.
+-   `-d` - this will cause all tables to be dropped then recreated during startup. A QoL feature for development and will be removed in later versions.
 
 ### Docker
 
