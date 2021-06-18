@@ -19,7 +19,7 @@ import (
 func main() {
 	log.Println("starting server")
 
-	envFile, dropTables := parseFlags()
+	envFile := parseFlags()
 	LoadEnv(envFile, VERSION)
 
 	log.Println("creating Postgres pool")
@@ -30,11 +30,6 @@ func main() {
 
 	log.Println("testing database connection")
 	DbConnectionTest(context.Background(), db)
-
-	if dropTables {
-		log.Println("dropping database tables")
-		DropTables(context.Background(), db)
-	}
 
 	// init data cache
 	dc := DataCache{}
@@ -71,9 +66,8 @@ func main() {
 	ExitHandler(server, db, rdb)
 }
 
-func parseFlags() (envFile string, dropTables bool) {
+func parseFlags() (envFile string) {
 	flag.StringVar(&envFile, "e", ENV_FILE, "path to the .env file. use -e nil to prevent .env file from being loaded")
-	flag.BoolVar(&dropTables, "d", false, "this will cause all tables to be dropped then recreated during startup")
 	flag.Parse()
 	return
 }
