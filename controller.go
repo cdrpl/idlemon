@@ -98,7 +98,7 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 		LastCollectedAt: user.Data.Campaign.LastCollectedAt,
 	}
 
-	log.Printf("user %v has collected resources: %v\n", userID, res)
+	log.Printf("user %v has collected resources: {exp:%v gold:%v expStones:%v}\n", userID, res.Exp, res.Gold, res.ExpStones)
 	JsonRes(w, res)
 }
 
