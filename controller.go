@@ -114,8 +114,6 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	dailyQuest := c.dc.DailyQuests[questID-1]
-
 	tx, err := c.db.Begin(r.Context())
 	if err != nil {
 		log.Printf("daily quest complete, fail to begin transaction: %v\n", err)
@@ -124,33 +122,34 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 	}
 	defer tx.Rollback(r.Context())
 
-	var (
-		id          int
-		count       int
-		isCompleted bool
-	)
-
-	query := "SELECT id, count, is_completed FROM user_daily_quest WHERE (user_id = ? AND daily_quest_id = ?) FOR UPDATE"
-	err = tx.QueryRow(r.Context(), query, userID, questID).Scan(&id, &count, &isCompleted)
+	user, err := FindUserLock(r.Context(), tx, userID)
 	if err != nil {
 		log.Printf("daily quest complete, fail to fetch user_daily_quest row: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	if isCompleted {
+	dailyQuest := c.dc.DailyQuests[questID]
+	userDailyQuest := user.Data.DailyQuests[questID]
+
+	if userDailyQuest.IsCompleted {
 		JsonRes(w, DailyQuestCompleteRes{Status: 1, Message: "already completed"})
 		return
 	}
 
-	if count < dailyQuest.Required {
-		JsonRes(w, DailyQuestCompleteRes{Status: 1})
+	if userDailyQuest.Count < dailyQuest.Required {
+		JsonRes(w, DailyQuestCompleteRes{Status: 2, Message: "requirements not met"})
 		return
 	}
 
-	// set count to 0 and is_completed to 1
+	reward := CompleteDailyQuest(questID, &user)
 
-	// give rewards
+	err = UpdateUserLock(r.Context(), tx, user)
+	if err != nil {
+		log.Printf("fail to update user: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	if err := tx.Commit(r.Context()); err != nil {
 		log.Printf("daily quest complete, failed to commit transaction: %v\n", err)
@@ -158,7 +157,8 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	// give response
+	res := DailyQuestCompleteRes{Status: 0, Reward: reward}
+	JsonRes(w, res)
 }
 
 /* Unit Routes */
