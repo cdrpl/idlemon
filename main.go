@@ -28,9 +28,6 @@ func main() {
 		log.Fatalf("failed to create postgres pool: %v\n", err)
 	}
 
-	log.Println("testing database connection")
-	DbConnectionTest(context.Background(), db)
-
 	// init data cache
 	dc := DataCache{}
 	if err := dc.Load(); err != nil {

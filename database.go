@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -47,23 +45,4 @@ func DropTables(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, downSql)
 
 	return err
-}
-
-// Test connection and exit if it fails, attempt multiple times before exit since database may still be starting up
-func DbConnectionTest(ctx context.Context, db *pgxpool.Pool) {
-	for i := 0; i < DB_CONN_RETRIES; i++ {
-		_, err := db.Exec(ctx, "SELECT 1")
-		if err != nil {
-			if i == DB_CONN_RETRIES-1 {
-				log.Fatalln("database connection error:", err)
-			} else {
-				log.Println("database test", i+1, "failed")
-				time.Sleep(time.Second * 1)
-				continue
-			}
-		} else {
-			log.Println("database connection successful")
-			break
-		}
-	}
 }
