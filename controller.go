@@ -132,7 +132,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 	dailyQuest := c.dc.DailyQuests[questID]
 	userDailyQuest := user.Data.DailyQuests[questID]
 
-	if userDailyQuest.IsCompleted {
+	if userDailyQuest.IsCompleted() {
 		JsonRes(w, DailyQuestCompleteRes{Status: 1, Message: "already completed"})
 		return
 	}

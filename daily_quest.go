@@ -24,18 +24,26 @@ func UnmarshallDailyQuestsJson() ([]DailyQuest, error) {
 
 type UserDailyQuest struct {
 	Count           int       `json:"count"`
-	IsCompleted     bool      `json:"isCompleted"`
 	LastCompletedAt time.Time `json:"lastCompletedAt"`
 }
 
+// Will check if the quest has already been completed today.
+func (udq UserDailyQuest) IsCompleted() bool {
+	y, m, d := time.Now().UTC().Date()
+	startOfToday := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+
+	return udq.LastCompletedAt.Unix() >= startOfToday.Unix()
+}
+
 func CreateUserDailyQuest() UserDailyQuest {
-	lastCompletedAt := time.Now().Add(-time.Hour * 25).UTC().Round(time.Second) // set last completed at to day before
+	// set before the start of today so the user can complete the quest even if they signed up today
+	lastCompletedAt := time.Now().Add(-time.Hour * 48).UTC().Round(time.Second)
+
 	return UserDailyQuest{LastCompletedAt: lastCompletedAt}
 }
 
 func CompleteDailyQuest(id int, user *User) Reward {
 	user.Data.DailyQuests[id].Count = 0
-	user.Data.DailyQuests[id].IsCompleted = true
 	user.Data.DailyQuests[id].LastCompletedAt = time.Now().UTC().Round(time.Second)
 
 	switch id {
