@@ -59,8 +59,8 @@ func CreateUserData(dc DataCache, time time.Time) UserData {
 		data.Resources = append(data.Resources, UserResource{})
 	}
 
-	for range dc.DailyQuests {
-		data.DailyQuests = append(data.DailyQuests, CreateUserDailyQuest())
+	for i := range dc.DailyQuests {
+		data.DailyQuests = append(data.DailyQuests, CreateUserDailyQuest(i))
 	}
 
 	return data
