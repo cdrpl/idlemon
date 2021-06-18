@@ -1,11 +1,11 @@
 # Idlemon Server
 
-This is a game server for an online idle game. Most player actions are received through HTTP requests but WebSockets are used for realtime needs such as player chat. Player data is saved using MariaDB and Redis is used as a temporary cache.
+This is a game server for an online idle game. Most player actions are received through HTTP requests but WebSockets are used for realtime needs such as player chat. Player data is stored in a Postgres database and Redis is used as a temporary cache.
 
 ### Dependencies
 
 -   Go (1.16.x)
--   MariaDB (10.x)
+-   PostgreSQL (13.x)
 -   Redis (6.x)
 
 ### Idlemon Client
@@ -36,7 +36,7 @@ Run the following commands to build and run the server with Docker.
 
 ### Docker Compose
 
-Docker compose is capable of setting up the server with a single command `docker compose up`. This will setup the server behind a NGINX reverse proxy, the server can be reached at localhost. phpMyAdmin will also be setup and can be accessed at localhost:8080. To login, use the root user and the password set with the `DB_PASS` environment variable.
+Docker compose is capable of setting up the server with a single command `docker compose up`. This will setup the server behind a NGINX reverse proxy, the server can be reached at localhost.
 
 ### Authentication
 
@@ -59,7 +59,7 @@ The server will create an admin account when starting up. The password is set us
 ### Setup Development Environment
 
 1. Install Go.
-2. Make sure you have access to a running instance of MariaDB and Redis.
+2. Make sure you have access to a running instance of Postgres and Redis.
 3. Make a copy of the [example.env](/example.env) file and name it ".env".
 4. Enter the correct database credentials in the newly made .env file.
 5. Make sure a database with the same name as the DB_NAME env var exists.

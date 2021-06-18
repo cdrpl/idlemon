@@ -1,38 +1,15 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
-	"log"
 )
 
 type Resource struct {
-	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-// Insert resources into the table if they don't exist.
-func InsertResources(ctx context.Context, db *sql.DB, dc *DataCache) {
-	for _, resource := range dc.Resources {
-		var id int
-
-		err := db.QueryRowContext(ctx, "SELECT id FROM resource WHERE id = ? FOR UPDATE", resource.ID).Scan(&id)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				query := "INSERT INTO resource (id, name) VALUES (?, ?)"
-				_, err := db.ExecContext(ctx, query, resource.ID, resource.Name)
-				if err != nil {
-					log.Fatalln("insert resources error:", err)
-				}
-
-				log.Printf("insert resource %+v\n", resource)
-			} else {
-				log.Fatalln("insert resources error:", err)
-			}
-		}
-	}
+type UserResource struct {
+	Amount int `json:"amount"`
 }
 
 // Unmarshall the embeded resourcesJson string.

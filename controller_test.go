@@ -3,11 +3,9 @@ package main_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/jackc/pgx/v4"
 	"golang.org/x/crypto/bcrypt"
 
 	. "github.com/cdrpl/idlemon-server"
@@ -144,90 +143,6 @@ func TestCampaignCollectRoute(t *testing.T) {
 	if res.Exp != 0 || res.Gold != 0 || res.ExpStones != 0 {
 		t.Fatalf("collected resources should be 0: %v", res)
 	}
-
-	past := time.Now().Add(-time.Second * 10)
-	query := "UPDATE campaign SET last_collected_at = ? WHERE user_id = ?"
-	_, err = db.Exec(query, past, user.ID)
-	if err != nil {
-		t.Fatalf("update campaign error: %v", err)
-	}
-
-	req = httptest.NewRequest("PUT", "/campaign/collect", nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
-	rr = httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	_ = json.Unmarshal(rr.Body.Bytes(), &res)
-
-	// check exp
-	expectExp := 10 * CAMPAIGN_EXP_PER_SEC
-	if res.Exp != expectExp {
-		t.Errorf("invalid exp value, expect %v, receive %v", expectExp, res.Exp)
-	}
-
-	var expScan int
-	query = "SELECT exp FROM user WHERE id = ?"
-	err = db.QueryRow(query, user.ID).Scan(&expScan)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if expScan != expectExp {
-		t.Errorf("exp in database did not match, expect %v, receive %v", expectExp, expScan)
-	}
-
-	// check gold
-	expectGold := 10 * CAMPAIGN_GOLD_PER_SEC
-	if res.Gold != expectGold {
-		t.Errorf("invalid gold value, expect %v, receive %v", expectGold, res.Gold)
-	}
-
-	var goldScan int
-	query = "SELECT amount FROM user_resource WHERE (user_id = ? AND resource_id = ?)"
-	err = db.QueryRow(query, user.ID, RESOURCE_GOLD).Scan(&goldScan)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if goldScan != expectGold {
-		t.Errorf("gold in database did not match, expect %v, receive %v", expectGold, goldScan)
-	}
-
-	// check exp stones
-	expectStone := 10 * CAMPAIGN_EXP_STONE_PER_SEC
-	if res.ExpStones != expectStone {
-		t.Errorf("invalid gold value, expect %v, receive %v", expectStone, res.ExpStones)
-	}
-
-	var stoneScan int
-	query = "SELECT amount FROM user_resource WHERE (user_id = ? AND resource_id = ?)"
-	err = db.QueryRow(query, user.ID, RESOURCE_EXP_STONE).Scan(&stoneScan)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if stoneScan != expectStone {
-		t.Errorf("exp stone in database did not match, expect %v, receive %v", expectStone, stoneScan)
-	}
-
-	// check last collected at
-	if time.Since(res.LastCollectedAt) > time.Second {
-		t.Errorf("more than a second has passed since LastCollectedAt: %v", res.LastCollectedAt)
-	}
-
-	var timeScan time.Time
-	err = db.QueryRow("SELECT last_collected_at FROM campaign WHERE user_id = ?", user.ID).Scan(&timeScan)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if timeScan != res.LastCollectedAt {
-		t.Errorf("last_collected_at in database not correct, expect %v, receive %v", res.LastCollectedAt, timeScan)
-	}
 }
 
 /* Unit Routes */
@@ -240,70 +155,18 @@ func TestUnitLockRoute(t *testing.T) {
 		t.Fatalf("fail to create test user: %v", err)
 	}
 
-	unit, err := InsertRandUnit(db, user.ID)
+	unit, err := InsertRandUnit(context.Background(), db, &user)
 	if err != nil {
 		t.Fatalf("insert rand user error: %v", err)
 	}
 
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit.ID), nil)
 	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
-
 	rr := httptest.NewRecorder()
-
 	router.ServeHTTP(rr, req)
+
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	// lock should be updated in database
-	var result bool
-	err = db.QueryRow("SELECT is_locked FROM unit WHERE id = ?", unit.ID).Scan(&result)
-	if err != nil {
-		t.Fatalf("db query error: %v", err)
-	}
-
-	if result != true {
-		t.Errorf("expected unit to be locked in databased, receive: %v", result)
-	}
-
-	// should reject unit ID of non existent unit
-	req = httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", 1234567), nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
-	rr = httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	// should reject malformed unit ID
-	req = httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", "invalid-unit-id"), nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
-	rr = httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	// should reject unit not owned by user
-	user2, err := InsertRandUser(db)
-	if err != nil {
-		log.Fatalf("insert rand user error: %v", err)
-	}
-
-	unit2, err := InsertRandUnit(db, user2.ID)
-	if err != nil {
-		log.Fatalf("insert rand user error: %v", err)
-	}
-
-	req = httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit2.ID), nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
-	rr = httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
 	}
 }
 
@@ -331,41 +194,13 @@ func TestUserSignUpRoute(t *testing.T) {
 
 	// user should exist
 	user := User{}
-	query := "SELECT id, name, email, pass, created_at FROM user WHERE name = ?"
-	err := db.QueryRow(query, userInsert.Name).Scan(&user.ID, &user.Name, &user.Email, &user.Pass, &user.CreatedAt)
+	query := "SELECT id, name, email, pass, created_at FROM users WHERE name = $1"
+	err := db.QueryRow(context.Background(), query, userInsert.Name).Scan(&user.ID, &user.Name, &user.Email, &user.Pass, &user.CreatedAt)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			t.Fatal("user was not present in the database")
 		} else {
-			t.Fatalf("database query error: %v", err)
-		}
-	}
-
-	// campaign row should exist
-	var scanCache int
-	err = db.QueryRow("SELECT id FROM campaign WHERE user_id = ?", user.ID).Scan(&scanCache)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			t.Fatal("campaign row was not inserted")
-		} else {
-			t.Fatalf("database query error: %v", err)
-		}
-	}
-
-	// user_resource rows should exist
-	resources, err := UnmarshallResourcesJson()
-	if err != nil {
-		t.Fatalf("unmarshall resources json error: %v", err)
-	}
-
-	for _, resource := range resources {
-		err = db.QueryRow("SELECT id FROM user_resource WHERE (user_id = ? AND resource_id = ?)", user.ID, resource.ID).Scan(&scanCache)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				t.Fatalf("user_resource row was not inserted: resource_id %v", resource.ID)
-			} else {
-				t.Fatalf("database query error: %v", err)
-			}
+			t.Fatalf("test user sign up route query user error: %v", err)
 		}
 	}
 
@@ -414,7 +249,7 @@ func TestUserSignInRoute(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
 	}
 
 	// sign in response should be valid
@@ -445,15 +280,6 @@ func TestUserSignInRoute(t *testing.T) {
 		t.Errorf("response should have no password, received: %v", signInRes.User.Pass)
 	}
 
-	if len(signInRes.UserResources) == 0 {
-		t.Error("userResources should not be empty")
-	}
-
-	// campaign should not have level 0
-	if signInRes.Campaign.Level == 0 {
-		t.Errorf("campaign should not have level 0, received: %v", signInRes.Campaign)
-	}
-
 	if len(signInRes.Resources) == 0 {
 		t.Error("resources should not be empty")
 	}
@@ -480,24 +306,12 @@ func TestUserSignInRoute(t *testing.T) {
 		t.Errorf("fail to unmarshal sign in response into map: %v", err)
 	}
 
-	if _, ok := m["user"]; !ok {
-		t.Error("sign in response didn't have a user property")
-	}
-
 	if _, ok := m["token"]; !ok {
 		t.Error("sign in response didn't have a token property")
 	}
 
-	if _, ok := m["units"]; !ok {
-		t.Error("sign in response didn't have a units property")
-	}
-
-	if _, ok := m["userResources"]; !ok {
-		t.Error("sign in response didn't have a userResources property")
-	}
-
-	if _, ok := m["campaign"]; !ok {
-		t.Error("sign in response didn't have a campaign property")
+	if _, ok := m["user"]; !ok {
+		t.Error("sign in response didn't have a user property")
 	}
 
 	if _, ok := m["resources"]; !ok {
@@ -542,7 +356,7 @@ func TestUserRenameRoute(t *testing.T) {
 
 	// name should be changed in database
 	userQuery := User{}
-	err = db.QueryRow("SELECT name FROM user WHERE id = ?", user.ID).Scan(&userQuery.Name)
+	err = db.QueryRow(context.Background(), "SELECT name FROM users WHERE id = $1", user.ID).Scan(&userQuery.Name)
 	if err != nil {
 		t.Errorf("expected name in database to equal %v, received: %v", newName, userQuery.Name)
 	}

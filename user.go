@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,103 +21,146 @@ type User struct {
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Pass      string    `json:"pass"`
-	Exp       int       `json:"exp"`
 	CreatedAt time.Time `json:"createdAt"`
+	Data      UserData  `json:"data"`
 }
 
-// Will hash the user password then insert into the database. Returns the last insert ID.
-func InsertUser(ctx context.Context, db *sql.DB, dc *DataCache, name string, email string, pass string) (int, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
-	if err != nil {
-		return 0, err
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-
-	var result sql.Result
+func CreateUser(dc DataCache, name string, email string, pass string) User {
 	now := time.Now().UTC().Round(time.Second)
 
-	// if inserting admin user, insert the ID, every other account uses auto increment ID
-	if name == ADMIN_NAME {
-		query := "INSERT INTO user (id, name, email, pass, created_at) VALUES (?, ?, ?, ?, ?)"
-		result, err = tx.ExecContext(ctx, query, ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL, string(hash), now)
-		if err != nil {
-			log.Fatalln("insert admin user error:", err)
-		}
-	} else {
-		query := "INSERT INTO user (name, email, pass, created_at) VALUES (?, ?, ?, ?)"
-		result, err = tx.ExecContext(ctx, query, name, email, string(hash), now)
-		if err != nil {
-			return 0, err
-		}
+	user := User{
+		Name:      name,
+		Email:     email,
+		Pass:      pass,
+		CreatedAt: now,
+		Data:      CreateUserData(dc, now),
 	}
 
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
+	return user
+}
+
+type UserData struct {
+	Exp         int              `json:"exp"`
+	Campaign    Campaign         `json:"campaign"`
+	DailyQuests []UserDailyQuest `json:"dailyQuests"`
+	Resources   []UserResource   `json:"resources"`
+	Units       []Unit           `json:"units"`
+}
+
+func CreateUserData(dc DataCache, time time.Time) UserData {
+	data := UserData{
+		Campaign:    Campaign{Level: 1, LastCollectedAt: time},
+		DailyQuests: make([]UserDailyQuest, 0),
+		Resources:   make([]UserResource, 0),
+		Units:       make([]Unit, 0),
 	}
 
-	// insert campaign row
-	query := "INSERT INTO campaign (user_id, last_collected_at) VALUES (?, ?)"
-	_, err = tx.ExecContext(ctx, query, userID, now)
-	if err != nil {
-		return 0, err
+	for range dc.Resources {
+		data.Resources = append(data.Resources, UserResource{})
 	}
 
-	// insert user resource rows
-	for _, resource := range dc.Resources {
-		_, err := tx.ExecContext(ctx, "INSERT INTO user_resource (user_id, resource_id) VALUES (?, ?)", userID, resource.ID)
-		if err != nil {
-			return 0, err
-		}
+	for range dc.DailyQuests {
+		data.DailyQuests = append(data.DailyQuests, UserDailyQuest{})
 	}
 
-	// insert user daily quests
-	for _, dailyQuest := range dc.DailyQuests {
-		_, err := tx.ExecContext(ctx, "INSERT INTO user_daily_quest (user_id, daily_quest_id) VALUES (?, ?)", userID, dailyQuest.ID)
-		if err != nil {
-			return 0, err
-		}
+	return data
+}
+
+// Implement the sql driver.Valuer interface.
+func (u *UserData) Value() (driver.Value, error) {
+	return json.Marshal(u)
+}
+
+// Implement the sql.Scanner interface.
+func (u *UserData) Scan(value interface{}) error {
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
 	}
 
-	if err := tx.Commit(); err != nil {
-		return 0, err
-	}
+	return json.Unmarshal(b, &u)
+}
 
-	return int(userID), nil
+// Find a user by ID from the database.
+func FindUser(ctx context.Context, db *pgxpool.Pool, id int) (User, error) {
+	user := User{ID: id}
+
+	query := "SELECT name, email, pass, created_at, data FROM users WHERE id = $1"
+	err := db.QueryRow(ctx, query, id).Scan(&user.Name, &user.Email, &user.Pass, &user.CreatedAt, &user.Data)
+
+	return user, err
+}
+
+// Find a user by ID from the database for update.
+func FindUserLock(ctx context.Context, tx pgx.Tx, id int) (User, error) {
+	user := User{ID: id}
+
+	query := "SELECT name, email, pass, created_at, data FROM users WHERE id = $1 FOR UPDATE"
+	err := tx.QueryRow(ctx, query, id).Scan(&user.Name, &user.Email, &user.Pass, &user.CreatedAt, &user.Data)
+
+	return user, err
+}
+
+// Will update the user's data column in the database.
+func UpdateUser(ctx context.Context, db *pgxpool.Pool, user User) error {
+	query := "UPDATE users SET data = $1 WHERE id = $2"
+	_, err := db.Exec(ctx, query, user.Data, user.ID)
+
+	return err
+}
+
+// Will update the user's data column in the database using an existing transaction.
+func UpdateUserLock(ctx context.Context, tx pgx.Tx, user User) error {
+	query := "UPDATE users SET data = $1 WHERE id = $2"
+	_, err := tx.Exec(ctx, query, user.Data, user.ID)
+
+	return err
+}
+
+// Will insert the user into the database. Returns the user's ID.
+func InsertUser(ctx context.Context, db *pgxpool.Pool, user User) (int, error) {
+	var userID int
+
+	query := "INSERT INTO users (name, email, pass, created_at, data) VALUES ($1, $2, $3, $4, $5) RETURNING id"
+	err := db.QueryRow(ctx, query, user.Name, user.Email, user.Pass, user.CreatedAt, user.Data).Scan(&userID)
+
+	return userID, err
 }
 
 // Will insert the admin user if it doesn't exist.
-func InsertAdminUser(ctx context.Context, db *sql.DB, dc *DataCache) {
+func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error {
 	var id int
 
 	// only insert admin user if no admin user exists
-	err := db.QueryRow("SELECT id FROM user WHERE id = ?", ADMIN_ID).Scan(&id)
+	err := db.QueryRow(ctx, "SELECT id FROM users WHERE id = $1", ADMIN_ID).Scan(&id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			pass := os.Getenv("ADMIN_PASS")
 
-			_, err := InsertUser(ctx, db, dc, ADMIN_NAME, ADMIN_EMAIL, pass)
+			hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 			if err != nil {
-				log.Fatalln("insert admin user error:", err)
+				return err
+			}
+
+			_, err = InsertUser(ctx, db, CreateUser(dc, ADMIN_NAME, ADMIN_EMAIL, string(hash)))
+			if err != nil {
+				return err
 			}
 
 			log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL)
 		} else {
-			log.Fatalln("insert admin user error:", err)
+			return fmt.Errorf("fail to query admin user: %v", err)
 		}
 	}
+
+	return nil
 }
 
 // Returns true if the user name is already taken.
-func NameExists(ctx context.Context, db *sql.DB, name string) (bool, error) {
-	err := db.QueryRowContext(ctx, "SELECT name FROM user WHERE name = ?", name).Scan(&name)
+func NameExists(ctx context.Context, db *pgxpool.Pool, name string) (bool, error) {
+	err := db.QueryRow(ctx, "SELECT name FROM users WHERE name = $1", name).Scan(&name)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
 		} else {
 			return false, err
@@ -124,10 +171,10 @@ func NameExists(ctx context.Context, db *sql.DB, name string) (bool, error) {
 }
 
 // Returns true if the user email is already taken.
-func EmailExists(ctx context.Context, db *sql.DB, email string) (bool, error) {
-	err := db.QueryRowContext(ctx, "SELECT email FROM user WHERE email = ?", email).Scan(&email)
+func EmailExists(ctx context.Context, db *pgxpool.Pool, email string) (bool, error) {
+	err := db.QueryRow(ctx, "SELECT email FROM users WHERE email = $1", email).Scan(&email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
 		} else {
 			return false, err

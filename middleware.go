@@ -23,6 +23,13 @@ type BodyParserMiddleware struct {
 // Will only accept reflect types of request.DTO.
 func (bpm BodyParserMiddleware) Middleware(dtotype reflect.Type, next httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		if r.Header.Get("Content-Type") != "" {
+			if r.Header.Get("Content-Type") != "application/json" {
+				ErrResCustom(w, http.StatusUnsupportedMediaType, "content type header must be application/json")
+				return
+			}
+		}
+
 		bytes, err := ReadReqBody(w, r)
 		if err != nil {
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())

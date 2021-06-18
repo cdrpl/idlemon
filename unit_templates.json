@@ -1,8 +1,7 @@
 {
     "unitTemplates": [
         {
-            "id": 1,
-            "typeId": 1,
+            "typeId": 0,
             "name": "Warrior",
             "hp": 10,
             "atk": 10,
@@ -10,8 +9,7 @@
             "spd": 8
         },
         {
-            "id": 2,
-            "typeId": 2,
+            "typeId": 1,
             "name": "Mage",
             "hp": 10,
             "atk": 10,
@@ -19,8 +17,7 @@
             "spd": 8
         },
         {
-            "id": 3,
-            "typeId": 3,
+            "typeId": 2,
             "name": "Healer",
             "hp": 10,
             "atk": 10,
@@ -28,8 +25,7 @@
             "spd": 8
         },
         {
-            "id": 4,
-            "typeId": 4,
+            "typeId": 3,
             "name": "Ninja",
             "hp": 10,
             "atk": 10,

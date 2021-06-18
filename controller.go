@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"io"
 	"log"
@@ -10,19 +9,22 @@ import (
 	"strconv"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateController(db *sql.DB, rdb *redis.Client, dc *DataCache) Controller {
+func CreateController(db *pgxpool.Pool, rdb *redis.Client, dc DataCache) Controller {
 	return Controller{db: db, rdb: rdb, dc: dc}
 }
 
 type Controller struct {
-	db  *sql.DB
+	db  *pgxpool.Pool
 	rdb *redis.Client
-	dc  *DataCache
+	dc  DataCache
 }
 
 /* App Routes */
@@ -60,59 +62,29 @@ func (c Controller) NotFound(w http.ResponseWriter, r *http.Request) {
 func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userID := GetUserID(r)
 
-	tx, err := c.db.BeginTx(r.Context(), nil)
+	tx, err := c.db.Begin(r.Context())
 	if err != nil {
 		log.Printf("campaign collect error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(r.Context())
 
-	campaign, err := GetCampaignLock(r.Context(), tx, userID)
+	user, err := FindUserLock(r.Context(), tx, userID)
 	if err != nil {
-		log.Printf("campaign collect error: %v\n", err)
+		log.Printf("fail to find user: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
 	}
 
-	exp, gold, expStones := campaign.Collect()
+	exp, gold, expStones := user.Data.Campaign.Collect(&user)
 
 	if exp > 0 || gold > 0 || expStones > 0 {
-		_, err = tx.ExecContext(r.Context(), "UPDATE campaign SET last_collected_at = ? WHERE id = ?", campaign.LastCollectedAt, campaign.ID)
+		err := UpdateUserLock(r.Context(), tx, user)
 		if err != nil {
-			log.Printf("campaign collect error: %v\n", err)
+			log.Printf("fail to update user data: %v\n", err)
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-			return
 		}
 
-		// update exp
-		query := "UPDATE user SET exp = exp + ? WHERE id = ?"
-		_, err = tx.ExecContext(r.Context(), query, exp, userID)
-		if err != nil {
-			log.Printf("campaign collect error: %v\n", err)
-			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// gold
-		query = "UPDATE user_resource SET amount = amount + ? WHERE (resource_id = ? AND user_id = ?)"
-		_, err = tx.ExecContext(r.Context(), query, gold, RESOURCE_GOLD, userID)
-		if err != nil {
-			log.Printf("campaign collect error: %v\n", err)
-			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// exp stone
-		query = "UPDATE user_resource SET amount = amount + ? WHERE (resource_id = ? AND user_id = ?)"
-		_, err = tx.ExecContext(r.Context(), query, expStones, RESOURCE_EXP_STONE, userID)
-		if err != nil {
-			log.Printf("campaign collect error: %v\n", err)
-			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// commit
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(r.Context()); err != nil {
 			log.Printf("campaign collect error: %v\n", err)
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 			return
@@ -123,7 +95,7 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 		Exp:             exp,
 		Gold:            gold,
 		ExpStones:       expStones,
-		LastCollectedAt: campaign.LastCollectedAt,
+		LastCollectedAt: user.Data.Campaign.LastCollectedAt,
 	}
 
 	log.Printf("user %v has collected resources: %v\n", userID, res)
@@ -144,13 +116,13 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 
 	dailyQuest := c.dc.DailyQuests[questID-1]
 
-	tx, err := c.db.BeginTx(r.Context(), nil)
+	tx, err := c.db.Begin(r.Context())
 	if err != nil {
 		log.Printf("daily quest complete, fail to begin transaction: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(r.Context())
 
 	var (
 		id          int
@@ -159,7 +131,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 	)
 
 	query := "SELECT id, count, is_completed FROM user_daily_quest WHERE (user_id = ? AND daily_quest_id = ?) FOR UPDATE"
-	err = tx.QueryRowContext(r.Context(), query, userID, questID).Scan(&id, &count, &isCompleted)
+	err = tx.QueryRow(r.Context(), query, userID, questID).Scan(&id, &count, &isCompleted)
 	if err != nil {
 		log.Printf("daily quest complete, fail to fetch user_daily_quest row: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -180,7 +152,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 
 	// give rewards
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(r.Context()); err != nil {
 		log.Printf("daily quest complete, failed to commit transaction: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
@@ -194,31 +166,46 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 // Toggle a unit's lock. Only works on units owned by the user.
 func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userID := GetUserID(r)
+	unitID := p.ByName("id")
 
-	unitID, err := strconv.Atoi(p.ByName("id"))
+	tx, err := c.db.Begin(r.Context())
 	if err != nil {
-		ErrResCustom(w, http.StatusBadRequest, "invalid unit ID")
-		return
+		log.Printf("fail to begin transaction: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 	}
+	defer tx.Rollback(r.Context())
 
-	// query will only run if unit is owned by the user
-	result, err := c.db.ExecContext(r.Context(), "UPDATE unit SET is_locked = !is_locked WHERE (id = ? AND user_id = ?)", unitID, userID)
+	user, err := FindUserLock(r.Context(), tx, userID)
 	if err != nil {
+		log.Printf("fail to find user: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+	// attempt to locate unit
+	for i, unit := range user.Data.Units {
+		if unit.ID == unitID {
+			user.Data.Units[i].IsLocked = !unit.IsLocked
+
+			err := UpdateUserLock(r.Context(), tx, user)
+			if err != nil {
+				log.Printf("fail to update user: %v\n", err)
+				ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			if err := tx.Commit(r.Context()); err != nil {
+				log.Printf("fail to commit transaction: %v\n", err)
+				ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			log.Printf("user %v change lock %v for unit %v", userID, !unit.IsLocked, unit.ID)
+			JsonSuccess(w)
+			return
+		}
 	}
 
-	if rowsAffected > 0 {
-		log.Printf("user %v toggled lock on unit %v", userID, unitID)
-		JsonSuccess(w)
-	} else {
-		log.Printf("user %v attempt toggle lock on invalid unit ID %v", userID, unitID)
-		ErrResCustom(w, http.StatusBadRequest, "invalid unit ID")
-	}
+	ErrRes(w, http.StatusNotFound)
 }
 
 /* User Routes */
@@ -246,7 +233,14 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	_, err = InsertUser(r.Context(), c.db, c.dc, req.Name, req.Email, req.Pass)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Pass), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("fail to hash user password: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	_, err = InsertUser(r.Context(), c.db, CreateUser(c.dc, req.Name, req.Email, string(hash)))
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -261,10 +255,10 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 	signInReq := GetReqDTO(r).(*SignInReq)
 
 	user := User{}
-	query := "SELECT id, name, pass, exp, created_at FROM user WHERE email = ?"
-	err := c.db.QueryRowContext(r.Context(), query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.Exp, &user.CreatedAt)
+	query := "SELECT id, name, pass, created_at, data FROM users WHERE email = $1"
+	err := c.db.QueryRow(r.Context(), query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.CreatedAt, &user.Data)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ErrRes(w, http.StatusUnauthorized)
 		} else {
 			log.Printf("sign in error: %v\n", err)
@@ -286,33 +280,13 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	// get user units
-	units, err := Units(r.Context(), c.db, user.ID)
-	if err != nil {
-		log.Printf("fetch user units error: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+	// increase daily sign in quest count
+	user.Data.DailyQuests[DAILY_QUEST_SIGN_IN].Count++
 
-	// get user resources
-	userResources, err := GetUserResources(r.Context(), c.db, user.ID)
+	// save updated user data
+	err = UpdateUser(r.Context(), c.db, user)
 	if err != nil {
-		log.Printf("fetch user resources error: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// get campaign
-	campaign, err := GetCampaign(r.Context(), c.db, user.ID)
-	if err != nil {
-		log.Printf("fetch campaign error: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// update daily sign in quest
-	if err := SignInDailyQuest(r.Context(), c.db, user.ID); err != nil {
-		log.Printf("user sign in daily quest error: %v\n", err)
+		log.Printf("fail to update user data: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -323,10 +297,10 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 	signInRes := SignInRes{
 		Token:         token,
 		User:          user,
-		Units:         units,
-		UserResources: userResources,
-		Campaign:      campaign,
+		DailyQuests:   c.dc.DailyQuests,
 		Resources:     c.dc.Resources,
+		UnitTemplates: c.dc.UnitTemplates,
+		UnitType:      c.dc.UnitTypes,
 	}
 
 	log.Printf("user sign in: %v\n", signInReq.Email)
@@ -337,17 +311,17 @@ func (c Controller) UserRename(w http.ResponseWriter, r *http.Request, p httprou
 	id := GetUserID(r)
 	req := GetReqDTO(r).(*UserRenameReq)
 
-	_, err := c.db.ExecContext(r.Context(), "UPDATE user SET name = ? WHERE id = ?", req.Name, id)
+	_, err := c.db.Exec(r.Context(), "UPDATE users SET name = $1 WHERE id = $2", req.Name, id)
 	if err != nil {
-		if sqlErr, ok := err.(*mysql.MySQLError); ok {
-			if sqlErr.Number == ER_DUP_ENTRY {
-				ErrResCustom(w, http.StatusBadRequest, "the name is already taken")
-				return
-			}
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			ErrResCustom(w, http.StatusBadRequest, "the name is already taken")
+		} else {
+			log.Printf("user rename error: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		}
 
-		log.Printf("user rename error: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func main() {
@@ -22,26 +22,31 @@ func main() {
 	envFile, dropTables := parseFlags()
 	LoadEnv(envFile, VERSION)
 
-	log.Println("creating database connection")
-	db := CreateDBConn()
-	log.Println("database connection created")
+	log.Println("creating Postgres pool")
+	db, err := CreateDBConn(context.Background())
+	if err != nil {
+		log.Fatalf("failed to create postgres pool: %v\n", err)
+	}
 
 	log.Println("testing database connection")
-	DbConnectionTest(db)
+	DbConnectionTest(context.Background(), db)
 
 	if dropTables {
 		log.Println("dropping database tables")
-		DropTables(db)
+		DropTables(context.Background(), db)
 	}
 
 	// init data cache
-	dc := &DataCache{}
+	dc := DataCache{}
 	if err := dc.Load(); err != nil {
 		log.Fatalf("failed to load the data cache: %v\n", err)
 	}
 
 	log.Println("initializing database")
-	InitDatabase(context.Background(), db, dc)
+	err = InitDatabase(context.Background(), db, dc)
+	if err != nil {
+		log.Fatalf("fail to init database: %v", err)
+	}
 
 	log.Println("connecting to redis")
 	rdb := CreateRedisClient()
@@ -83,7 +88,7 @@ func RunHTTPServer(server *http.Server) {
 }
 
 // Graceful exit
-func ExitHandler(server *http.Server, db *sql.DB, rdb *redis.Client) {
+func ExitHandler(server *http.Server, db *pgxpool.Pool, rdb *redis.Client) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 

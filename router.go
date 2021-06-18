@@ -1,15 +1,15 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"reflect"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
 )
 
-func CreateRouter(db *sql.DB, rdb *redis.Client, dc *DataCache, wsHub *WsHub) *httprouter.Router {
+func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, dc DataCache, wsHub *WsHub) *httprouter.Router {
 	router := httprouter.New()
 
 	// controllers

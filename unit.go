@@ -1,61 +1,23 @@
 package main
 
-import (
-	"context"
-	"database/sql"
-)
-
 type Unit struct {
-	ID         int  `json:"id"`
-	UserID     int  `json:"userId"`
-	TemplateID int  `json:"templateId"`
-	Level      int  `json:"level"`
-	Stars      int  `json:"stars"`
-	IsLocked   bool `json:"isLocked"`
+	ID         string `json:"id"`
+	TemplateID int    `json:"templateId"`
+	Level      int    `json:"level"`
+	Stars      int    `json:"stars"`
+	IsLocked   bool   `json:"isLocked"`
 }
 
-// Find all units owned by a user.
-func Units(ctx context.Context, db *sql.DB, userID int) ([]Unit, error) {
-	units := make([]Unit, 0)
-
-	rows, err := db.QueryContext(ctx, "SELECT * FROM unit WHERE user_id = ?", userID)
+func CreateUnit(templateID int) (Unit, error) {
+	id, err := GenerateToken(UNIT_ID_LEN)
 	if err != nil {
-		return nil, err
+		return Unit{}, err
 	}
 
-	for rows.Next() {
-		unit := Unit{}
-
-		err := rows.Scan(&unit.ID, &unit.UserID, &unit.TemplateID, &unit.Level, &unit.Stars, &unit.IsLocked)
-		if err != nil {
-			return nil, err
-		}
-
-		units = append(units, unit)
-	}
-
-	return units, nil
-}
-
-func InsertUnit(ctx context.Context, db *sql.DB, userID int, templateID int) (Unit, error) {
-	unit := Unit{
-		UserID:     userID,
+	return Unit{
+		ID:         id,
 		TemplateID: templateID,
 		Level:      1,
 		Stars:      1,
-	}
-
-	query := "INSERT INTO unit (user_id, template_id) VALUES (?, ?)"
-	result, err := db.ExecContext(ctx, query, unit.UserID, unit.TemplateID)
-	if err != nil {
-		return unit, err
-	}
-
-	unitID, err := result.LastInsertId()
-	if err != nil {
-		return unit, err
-	}
-
-	unit.ID = int(unitID)
-	return unit, nil
+	}, nil
 }

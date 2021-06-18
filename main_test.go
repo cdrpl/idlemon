@@ -2,7 +2,6 @@ package main_test
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -14,30 +13,42 @@ import (
 	. "github.com/cdrpl/idlemon-server"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var router *httprouter.Router
-var dataCache *DataCache
-var db *sql.DB
+var dataCache DataCache
+var db *pgxpool.Pool
 var rdb *redis.Client
 
 func TestMain(m *testing.M) {
-	log.SetOutput(ioutil.Discard)
-
 	os.Setenv("ENV", "test")
 	os.Setenv("DB_NAME", "test")
 	LoadEnv(ENV_FILE, VERSION)
 
-	dataCache = &DataCache{}
+	dataCache = DataCache{}
 
 	if err := dataCache.Load(); err != nil {
-		log.SetOutput(os.Stdout)
 		log.Fatalf("fail to load data cache: %v\n", err)
 	}
 
-	db = CreateDBConn()
-	DropTables(db)
+	var err error
+	db, err = CreateDBConn(context.Background())
+	if err != nil {
+		log.Fatalf("fail to create DB connection: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = DropTables(context.Background(), db)
+	if err != nil {
+		log.Fatalf("fail to drop tables: %v\n", err)
+		os.Exit(1)
+	}
+
+	log.SetOutput(ioutil.Discard)
+
 	InitDatabase(context.Background(), db, dataCache)
 
 	rdb = CreateRedisClient()
@@ -59,8 +70,6 @@ func TestMain(m *testing.M) {
 /* Test Helpers */
 
 func RandUser() (User, error) {
-	user := User{}
-
 	name, err := GenerateToken(16)
 	if err != nil {
 		return User{}, err
@@ -76,20 +85,24 @@ func RandUser() (User, error) {
 		return User{}, err
 	}
 
-	user.Name = name
-	user.Email = email + "@fakemockemailfake.com"
-	user.Pass = pass
+	email = email + "@fakemockemailfake.com"
+	user := CreateUser(dataCache, name, email, pass)
 
 	return user, nil
 }
 
-func InsertRandUser(db *sql.DB) (User, error) {
+func InsertRandUser(db *pgxpool.Pool) (User, error) {
 	user, err := RandUser()
 	if err != nil {
 		return User{}, err
 	}
 
-	id, err := InsertUser(context.Background(), db, dataCache, user.Name, user.Email, user.Pass)
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), bcrypt.DefaultCost)
+	if err != nil {
+		return User{}, err
+	}
+
+	id, err := InsertUser(context.Background(), db, CreateUser(dataCache, user.Name, user.Email, string(hash)))
 	if err != nil {
 		return User{}, err
 	}
@@ -98,7 +111,7 @@ func InsertRandUser(db *sql.DB) (User, error) {
 	return user, nil
 }
 
-func AuthenticatedUser(db *sql.DB, rdb *redis.Client) (string, User, error) {
+func AuthenticatedUser(db *pgxpool.Pool, rdb *redis.Client) (string, User, error) {
 	user, err := InsertRandUser(db)
 	if err != nil {
 		return "", User{}, err
@@ -113,13 +126,18 @@ func AuthenticatedUser(db *sql.DB, rdb *redis.Client) (string, User, error) {
 }
 
 // Create a random unit and insert it into the table.
-func InsertRandUnit(db *sql.DB, userID int) (Unit, error) {
-	template, err := RandUnitTemplateID(db)
+func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, user *User) (Unit, error) {
+	template := RandUnitTemplateID(dataCache)
+
+	unit, err := CreateUnit(template)
 	if err != nil {
-		return Unit{}, err
+		return unit, err
 	}
 
-	return InsertUnit(context.Background(), db, userID, template)
+	user.Data.Units = append(user.Data.Units, unit)
+	err = UpdateUser(ctx, db, *user)
+
+	return unit, err
 }
 
 // Will send an HTTP request without an Authorization header then call t.Fatalf if 401 not received.
