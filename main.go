@@ -14,7 +14,21 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	_ "embed"
 )
+
+//go:embed robots.txt
+var robots string
+
+//go:embed database_up.sql
+var upSql string
+
+//go:embed database_down.sql
+var downSql string
+
+//go:embed unit_templates.json
+var unitTemplatesJson string
 
 func main() {
 	log.Println("starting server")
