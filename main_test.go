@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -132,6 +133,10 @@ func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, user *User) (Unit, er
 	unit, err := CreateUnit(template)
 	if err != nil {
 		return unit, err
+	}
+
+	if _, ok := user.Data.Units[unit.ID]; ok {
+		return unit, errors.New("unit id duplicate error")
 	}
 
 	user.Data.Units[unit.ID] = unit
