@@ -44,7 +44,7 @@ type UserData struct {
 	Campaign    Campaign         `json:"campaign"`
 	DailyQuests []UserDailyQuest `json:"dailyQuests"`
 	Resources   []UserResource   `json:"resources"`
-	Units       []Unit           `json:"units"`
+	Units       map[string]Unit  `json:"units"` // map uses unit ID as key
 }
 
 func CreateUserData(dc DataCache, time time.Time) UserData {
@@ -52,7 +52,7 @@ func CreateUserData(dc DataCache, time time.Time) UserData {
 		Campaign:    Campaign{Level: 1, LastCollectedAt: time},
 		DailyQuests: make([]UserDailyQuest, 0),
 		Resources:   make([]UserResource, 0),
-		Units:       make([]Unit, 0),
+		Units:       make(map[string]Unit),
 	}
 
 	for range dc.Resources {

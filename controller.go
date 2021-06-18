@@ -181,28 +181,26 @@ func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p htt
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 	}
 
-	// attempt to locate unit
-	for i, unit := range user.Data.Units {
-		if unit.ID == unitID {
-			user.Data.Units[i].IsLocked = !unit.IsLocked
+	if unit, ok := user.Data.Units[unitID]; ok {
+		unit.IsLocked = !unit.IsLocked
+		user.Data.Units[unitID] = unit
 
-			err := UpdateUserLock(r.Context(), tx, user)
-			if err != nil {
-				log.Printf("fail to update user: %v\n", err)
-				ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-
-			if err := tx.Commit(r.Context()); err != nil {
-				log.Printf("fail to commit transaction: %v\n", err)
-				ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-
-			log.Printf("user %v change lock %v for unit %v", userID, !unit.IsLocked, unit.ID)
-			JsonSuccess(w)
+		err := UpdateUserLock(r.Context(), tx, user)
+		if err != nil {
+			log.Printf("fail to update user: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		if err := tx.Commit(r.Context()); err != nil {
+			log.Printf("fail to commit transaction: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		log.Printf("user %v change lock %v for unit %v", userID, !unit.IsLocked, unit.ID)
+		JsonSuccess(w)
+		return
 	}
 
 	ErrRes(w, http.StatusNotFound)

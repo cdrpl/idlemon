@@ -134,7 +134,7 @@ func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, user *User) (Unit, er
 		return unit, err
 	}
 
-	user.Data.Units = append(user.Data.Units, unit)
+	user.Data.Units[unit.ID] = unit
 	err = UpdateUser(ctx, db, *user)
 
 	return unit, err
