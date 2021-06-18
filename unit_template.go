@@ -5,6 +5,7 @@ import (
 )
 
 type UnitTemplate struct {
+	ID     int    `json:"id"`
 	TypeID int    `json:"typeId"`
 	Name   string `json:"name"`
 	Hp     int    `json:"hp"`

@@ -6,10 +6,7 @@ import "time"
 type SignInRes struct {
 	Token         string         `json:"token"`
 	User          User           `json:"user"`
-	DailyQuests   []DailyQuest   `json:"dailyQuests"`
-	Resources     []Resource     `json:"resources"`
 	UnitTemplates []UnitTemplate `json:"unitTemplates"`
-	UnitType      []UnitType     `json:"unitTypes"`
 }
 
 type CampaignCollectRes struct {

@@ -1,42 +1,45 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"time"
 )
 
 type DailyQuest struct {
-	Description string `json:"description"`
-	Required    int    `json:"required"`
+	Required int    `json:"required"`
+	Reward   Reward `json:"reward"`
 }
 
-func UnmarshallDailyQuestsJson() ([]DailyQuest, error) {
-	var data map[string][]DailyQuest
+// Returns a slice of all the daily quests
+func DailyQuests() []DailyQuest {
+	dailyQuests := make([]DailyQuest, 1)
 
-	err := json.Unmarshal([]byte(dailyQuestsJson), &data)
-	if err != nil {
-		return nil, err
+	// require user to sign in
+	dailyQuests[DAILY_QUEST_SIGN_IN] = DailyQuest{
+		Required: 1,
+		Reward: Reward{
+			Type:   REWARD_GEMS,
+			Amount: 1000,
+		},
 	}
 
-	return data["dailyQuests"], nil
+	return dailyQuests
 }
 
-type UserDailyQuest struct {
-	ID              int       `json:"id"`
+type DailyQuestProgress struct {
+	DailyQuestID    int       `json:"dailyQuestId"`
 	Count           int       `json:"count"`
 	LastCompletedAt time.Time `json:"lastCompletedAt"`
 }
 
-func CreateUserDailyQuest(id int) UserDailyQuest {
+func CreateDailyQuestProgress(id int) DailyQuestProgress {
 	// set before the start of today so the user can complete the quest even if they signed up today
 	lastCompletedAt := time.Now().Add(-time.Hour * 48).UTC().Round(time.Second)
 
-	return UserDailyQuest{ID: id, LastCompletedAt: lastCompletedAt}
+	return DailyQuestProgress{DailyQuestID: id, LastCompletedAt: lastCompletedAt}
 }
 
 // Will check if the quest has already been completed today.
-func (udq *UserDailyQuest) IsCompleted() bool {
+func (udq *DailyQuestProgress) IsCompleted() bool {
 	y, m, d := time.Now().UTC().Date()
 	startOfToday := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 
@@ -44,24 +47,14 @@ func (udq *UserDailyQuest) IsCompleted() bool {
 }
 
 // Will increase the count if the quest hasn't been completed today.
-func (udq *UserDailyQuest) IncreaseCount() {
+func (udq *DailyQuestProgress) IncreaseCount() {
 	if !udq.IsCompleted() {
 		udq.Count++
 	}
 }
 
-// Will complete the daily quest if it hasn't been completed and the requirements are met.
-func (udq *UserDailyQuest) Complete() Reward {
+// Call this method when completing the daily quest. It will update the state of the struct.
+func (udq *DailyQuestProgress) Complete() {
 	udq.Count = 0
 	udq.LastCompletedAt = time.Now().UTC().Round(time.Second)
-
-	switch udq.ID {
-	case DAILY_QUEST_SIGN_IN:
-		return Reward{Type: GEMS, Amount: DAILY_SIGN_IN_REWARD}
-
-	default:
-		log.Printf("attempt to complete daily quest not handled by switch statement: %v\n", udq.ID)
-	}
-
-	return Reward{}
 }

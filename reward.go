@@ -4,14 +4,14 @@ import "log"
 
 // Represents resources given as a reward.
 type Reward struct {
-	Type   string `json:"type"`
-	Amount int    `json:"amount"`
+	Type   int `json:"type"`
+	Amount int `json:"amount"`
 }
 
 // Will apply the reward to a user.
 func (r Reward) Apply(user *User) {
 	switch r.Type {
-	case GEMS:
+	case REWARD_GEMS:
 		user.Data.Resources[RESOURCE_GEMS].Amount += r.Amount
 
 	default:

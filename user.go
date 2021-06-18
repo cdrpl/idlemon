@@ -40,27 +40,25 @@ func CreateUser(dc DataCache, name string, email string, pass string) User {
 }
 
 type UserData struct {
-	Exp         int              `json:"exp"`
-	Campaign    Campaign         `json:"campaign"`
-	DailyQuests []UserDailyQuest `json:"dailyQuests"`
-	Resources   []UserResource   `json:"resources"`
-	Units       map[string]Unit  `json:"units"` // map uses unit ID as key
+	Exp                int                  `json:"exp"`
+	Campaign           Campaign             `json:"campaign"`
+	DailyQuestProgress []DailyQuestProgress `json:"dailyQuestProgress"`
+	Resources          []Resource           `json:"resources"`
+	Units              map[string]Unit      `json:"units"` // map uses unit ID as key
 }
 
 func CreateUserData(dc DataCache, time time.Time) UserData {
 	data := UserData{
-		Campaign:    Campaign{Level: 1, LastCollectedAt: time},
-		DailyQuests: make([]UserDailyQuest, 0),
-		Resources:   make([]UserResource, 0),
-		Units:       make(map[string]Unit),
+		Campaign:           Campaign{Level: 1, LastCollectedAt: time},
+		DailyQuestProgress: make([]DailyQuestProgress, 0),
+		Resources:          make([]Resource, 0),
+		Units:              make(map[string]Unit),
 	}
 
-	for range dc.Resources {
-		data.Resources = append(data.Resources, UserResource{})
-	}
+	data.Resources = dc.Resources
 
 	for i := range dc.DailyQuests {
-		data.DailyQuests = append(data.DailyQuests, CreateUserDailyQuest(i))
+		data.DailyQuestProgress = append(data.DailyQuestProgress, CreateDailyQuestProgress(i))
 	}
 
 	return data

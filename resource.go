@@ -1,25 +1,18 @@
 package main
 
-import (
-	"encoding/json"
-)
-
+// Represents a monetary resource such as gold.
 type Resource struct {
-	Name string `json:"name"`
-}
-
-type UserResource struct {
+	ID     int `json:"id"`
 	Amount int `json:"amount"`
 }
 
-// Unmarshall the embeded resourcesJson string.
-func UnmarshallResourcesJson() ([]Resource, error) {
-	var data map[string][]Resource
+func Resources() []Resource {
+	resources := make([]Resource, 4)
 
-	err := json.Unmarshal([]byte(resourcesJson), &data)
-	if err != nil {
-		return nil, err
-	}
+	resources[RESOURCE_GOLD] = Resource{ID: RESOURCE_GOLD}
+	resources[RESOURCE_GEMS] = Resource{ID: RESOURCE_GEMS}
+	resources[RESOURCE_EXP_STONE] = Resource{ID: RESOURCE_EXP_STONE}
+	resources[RESOURCE_EVO_STONE] = Resource{ID: RESOURCE_EVO_STONE}
 
-	return data["resources"], nil
+	return resources
 }

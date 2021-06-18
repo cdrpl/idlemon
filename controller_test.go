@@ -280,10 +280,6 @@ func TestUserSignInRoute(t *testing.T) {
 		t.Errorf("response should have no password, received: %v", signInRes.User.Pass)
 	}
 
-	if len(signInRes.Resources) == 0 {
-		t.Error("resources should not be empty")
-	}
-
 	// api token should exist
 	idS := fmt.Sprintf("%d", signInRes.User.ID)
 	result, err := rdb.Get(context.Background(), idS).Result()
@@ -312,10 +308,6 @@ func TestUserSignInRoute(t *testing.T) {
 
 	if _, ok := m["user"]; !ok {
 		t.Error("sign in response didn't have a user property")
-	}
-
-	if _, ok := m["resources"]; !ok {
-		t.Error("sign in response didn't have a resources property")
 	}
 }
 

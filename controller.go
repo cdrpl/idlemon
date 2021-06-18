@@ -130,7 +130,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 	}
 
 	dailyQuest := c.dc.DailyQuests[questID]
-	userDailyQuest := &user.Data.DailyQuests[questID]
+	userDailyQuest := &user.Data.DailyQuestProgress[questID]
 
 	if userDailyQuest.IsCompleted() {
 		JsonRes(w, DailyQuestCompleteRes{Status: 1, Message: "already completed"})
@@ -142,8 +142,8 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	reward := userDailyQuest.Complete()
-	reward.Apply(&user)
+	userDailyQuest.Complete()
+	dailyQuest.Reward.Apply(&user)
 
 	err = UpdateUserLock(r.Context(), tx, user)
 	if err != nil {
@@ -158,7 +158,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	res := DailyQuestCompleteRes{Status: 0, Reward: reward}
+	res := DailyQuestCompleteRes{Status: 0, Reward: dailyQuest.Reward}
 	JsonRes(w, res)
 }
 
@@ -280,7 +280,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 	}
 
 	// increase daily sign in quest count
-	user.Data.DailyQuests[DAILY_QUEST_SIGN_IN].Count++
+	user.Data.DailyQuestProgress[DAILY_QUEST_SIGN_IN].Count++
 
 	// save updated user data
 	err = UpdateUser(r.Context(), c.db, user)
@@ -296,10 +296,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 	signInRes := SignInRes{
 		Token:         token,
 		User:          user,
-		DailyQuests:   c.dc.DailyQuests,
-		Resources:     c.dc.Resources,
 		UnitTemplates: c.dc.UnitTemplates,
-		UnitType:      c.dc.UnitTypes,
 	}
 
 	log.Printf("user sign in: %v\n", signInReq.Email)

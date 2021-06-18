@@ -60,14 +60,9 @@ const (
 	DAILY_QUEST_SIGN_IN = iota
 )
 
-// Amount of daily quest rewards.
+// Reward types.
 const (
-	DAILY_SIGN_IN_REWARD = 1000
-)
-
-// Constant strings.
-const (
-	GEMS = "gems"
+	REWARD_GEMS = iota
 )
 
 // Admin user details.
