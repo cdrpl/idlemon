@@ -60,7 +60,7 @@ func CreateUserData(dc DataCache, time time.Time) UserData {
 	}
 
 	for range dc.DailyQuests {
-		data.DailyQuests = append(data.DailyQuests, UserDailyQuest{})
+		data.DailyQuests = append(data.DailyQuests, CreateUserDailyQuest())
 	}
 
 	return data

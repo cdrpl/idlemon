@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"time"
 )
 
 type DailyQuest struct {
@@ -22,13 +23,20 @@ func UnmarshallDailyQuestsJson() ([]DailyQuest, error) {
 }
 
 type UserDailyQuest struct {
-	Count       int  `json:"count"`
-	IsCompleted bool `json:"isCompleted"`
+	Count           int       `json:"count"`
+	IsCompleted     bool      `json:"isCompleted"`
+	LastCompletedAt time.Time `json:"lastCompletedAt"`
+}
+
+func CreateUserDailyQuest() UserDailyQuest {
+	lastCompletedAt := time.Now().Add(-time.Hour * 25).UTC().Round(time.Second) // set last completed at to day before
+	return UserDailyQuest{LastCompletedAt: lastCompletedAt}
 }
 
 func CompleteDailyQuest(id int, user *User) Reward {
 	user.Data.DailyQuests[id].Count = 0
 	user.Data.DailyQuests[id].IsCompleted = true
+	user.Data.DailyQuests[id].LastCompletedAt = time.Now().UTC().Round(time.Second)
 
 	switch id {
 	case DAILY_QUEST_SIGN_IN:
