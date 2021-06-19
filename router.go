@@ -33,6 +33,9 @@ func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, dc DataCache, wsHub *WsHu
 	// daily quest routes
 	router.PUT("/daily-quest/:id/complete", auth(controller.DailyQuestComplete))
 
+	// summon routes
+	router.PUT("/summon/unit", auth(controller.SummonUnit))
+
 	// unit routes
 	router.PUT("/unit/:id/toggle-lock", auth(controller.UnitToggleLock))
 

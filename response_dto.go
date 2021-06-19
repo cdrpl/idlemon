@@ -17,7 +17,7 @@ type CampaignCollectRes struct {
 }
 
 type DailyQuestCompleteRes struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	Reward  Reward `json:"reward"`
+	Status      int         `json:"status"`
+	Message     string      `json:"message"`
+	Transaction Transaction `json:"transaction"`
 }

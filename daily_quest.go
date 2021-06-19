@@ -4,9 +4,10 @@ import (
 	"time"
 )
 
+// Daily quest has a required number to complete it and a transaction representing the reward given for completion.
 type DailyQuest struct {
-	Required int    `json:"required"`
-	Reward   Reward `json:"reward"`
+	Required    int         `json:"required"`
+	Transaction Transaction `json:"transaction"`
 }
 
 // Returns a slice of all the daily quests
@@ -16,8 +17,8 @@ func DailyQuests() []DailyQuest {
 	// require user to sign in
 	dailyQuests[DAILY_QUEST_SIGN_IN] = DailyQuest{
 		Required: 1,
-		Reward: Reward{
-			Type:   REWARD_GEMS,
+		Transaction: Transaction{
+			Type:   TRANSACTION_GEMS,
 			Amount: 1000,
 		},
 	}

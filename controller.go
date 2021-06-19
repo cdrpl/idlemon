@@ -146,7 +146,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 	}
 
 	userDailyQuest.Complete()
-	dailyQuest.Reward.Apply(&user)
+	dailyQuest.Transaction.Apply(&user)
 
 	err = UpdateUserLock(r.Context(), tx, user)
 	if err != nil {
@@ -162,8 +162,69 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 	}
 
 	log.Printf("user %v completed daily quest %v", user.ID, questID)
-	res := DailyQuestCompleteRes{Status: 0, Reward: dailyQuest.Reward}
+	res := DailyQuestCompleteRes{Status: 0, Transaction: dailyQuest.Transaction}
 	JsonRes(w, res)
+}
+
+/* Summon Routes */
+
+func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	userID := GetUserID(r)
+
+	tx, err := c.db.Begin(r.Context())
+	if err != nil {
+		log.Printf("fail to begin transaction: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	user, err := FindUserLock(r.Context(), tx, userID)
+	if err != nil {
+		log.Fatalf("fail to find user: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// must have enough resources to summon
+	gems := user.Data.Resources[RESOURCE_GEMS].Amount
+	if gems < UNIT_SUMMON_COST {
+		ErrResCustom(w, http.StatusBadRequest, "not enough gems")
+		return
+	}
+
+	// get a random unit
+	unit, err := RandUnit(c.dc)
+	if err != nil {
+		log.Printf("fail to create random unit: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// add unit to user struct
+	if err := AddUnitToUser(&user, unit); err != nil {
+		log.Printf("fail to add unit to user: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// subtract resources
+	user.Data.Resources[RESOURCE_GEMS].Amount -= UNIT_SUMMON_COST
+
+	if err := UpdateUserLock(r.Context(), tx, user); err != nil {
+		log.Fatalf("fail to update user: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		log.Printf("fail to commit transaction: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	log.Printf("user %v summoned a unit {templateId:%v}\n", user.ID, unit.TemplateID)
+	JsonRes(w, unit)
 }
 
 /* Unit Routes */

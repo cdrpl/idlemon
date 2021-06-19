@@ -10,6 +10,7 @@ const (
 	API_TOKEN_TTL     = time.Hour * 12 // Time until the API token expires.
 	MAX_PG_CONN       = 10             // Maximum number of open Postgres connections.
 	UNIT_ID_LEN       = 32             // Number of characters in a unit's ID.
+	UNIT_SUMMON_COST  = 250            // The cost to summon a unit.
 )
 
 // Default env values.
@@ -59,9 +60,9 @@ const (
 	DAILY_QUEST_SIGN_IN = iota
 )
 
-// Reward types.
+// Transaction types.
 const (
-	REWARD_GEMS = iota
+	TRANSACTION_GEMS = iota
 )
 
 // Admin user details.
