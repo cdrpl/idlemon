@@ -2,7 +2,6 @@ package main_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -135,17 +134,9 @@ func AuthenticatedUser(db *pgxpool.Pool, rdb *redis.Client) (string, User, error
 func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, user *User) (Unit, error) {
 	template := RandUnitTemplateID(dataCache)
 
-	unit, err := CreateUnit(template)
-	if err != nil {
-		return unit, err
-	}
-
-	if _, ok := user.Data.Units[unit.ID]; ok {
-		return unit, errors.New("unit id duplicate error")
-	}
-
-	user.Data.Units[unit.ID] = unit
-	err = UpdateUser(ctx, db, *user)
+	unit := CreateUnit(template)
+	AddUnitToUser(user, unit)
+	err := UpdateUser(ctx, db, *user)
 
 	return unit, err
 }

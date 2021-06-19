@@ -1,43 +1,42 @@
 package main
 
-import "errors"
-
 type Unit struct {
-	ID         string `json:"id"`
-	TemplateID int    `json:"templateId"`
-	Level      int    `json:"level"`
-	Stars      int    `json:"stars"`
-	IsLocked   bool   `json:"isLocked"`
+	ID         int  `json:"id"`
+	TemplateID int  `json:"templateId"`
+	Level      int  `json:"level"`
+	Stars      int  `json:"stars"`
+	IsLocked   bool `json:"isLocked"`
 }
 
 // Create a unit with the given template ID.
-func CreateUnit(templateID int) (Unit, error) {
-	id, err := GenerateToken(UNIT_ID_LEN)
-	if err != nil {
-		return Unit{}, err
-	}
-
+func CreateUnit(templateID int) Unit {
 	return Unit{
-		ID:         id,
 		TemplateID: templateID,
 		Level:      1,
 		Stars:      1,
-	}, nil
+	}
 }
 
 // Will return a random 1 star unit at level 1.
-func RandUnit(dc DataCache) (Unit, error) {
+func RandUnit(dc DataCache) Unit {
 	template := RandUnitTemplateID(dc)
 	return CreateUnit(template)
 }
 
-// Add unit to the user's units map, will return error if the unit ID is a duplicate.
-func AddUnitToUser(user *User, unit Unit) error {
-	if _, ok := user.Data.Units[unit.ID]; ok {
-		return errors.New("duplicate unit ID")
+// Add unit to the user's units map. Will set the unit's ID and return it.
+func AddUnitToUser(user *User, unit Unit) Unit {
+	id := user.Data.UnitSerial + 1
+
+	// if ID is taken, increment ID until empty one is found
+	_, ok := user.Data.Units[id]
+	for ok {
+		id++
+		_, ok = user.Data.Units[id]
 	}
 
-	user.Data.Units[unit.ID] = unit
+	unit.ID = id
+	user.Data.Units[id] = unit
+	user.Data.UnitSerial = id
 
-	return nil
+	return unit
 }

@@ -193,23 +193,10 @@ func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprou
 		return
 	}
 
-	// get a random unit
-	unit, err := RandUnit(c.dc)
-	if err != nil {
-		log.Printf("fail to create random unit: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// add unit to user struct
-	if err := AddUnitToUser(&user, unit); err != nil {
-		log.Printf("fail to add unit to user: %v\n", err)
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// subtract resources
 	user.Data.Resources[RESOURCE_GEMS].Amount -= UNIT_SUMMON_COST
+
+	unit := RandUnit(c.dc)
+	unit = AddUnitToUser(&user, unit)
 
 	if err := UpdateUserLock(r.Context(), tx, user); err != nil {
 		log.Fatalf("fail to update user: %v\n", err)
@@ -232,7 +219,13 @@ func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprou
 // Toggle a unit's lock. Only works on units owned by the user.
 func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userID := GetUserID(r)
-	unitID := p.ByName("id")
+
+	unitID, err := strconv.Atoi(p.ByName("id"))
+	if err != nil {
+		log.Printf("unit ID must be an integer: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	tx, err := c.db.Begin(r.Context())
 	if err != nil {

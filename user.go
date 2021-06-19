@@ -41,10 +41,11 @@ func CreateUser(dc DataCache, name string, email string, pass string) User {
 
 type UserData struct {
 	Exp                int                  `json:"exp"`
+	UnitSerial         int                  `json:"unitSerial"` // used for auto incrementing unit ID
 	Campaign           Campaign             `json:"campaign"`
 	DailyQuestProgress []DailyQuestProgress `json:"dailyQuestProgress"`
 	Resources          []Resource           `json:"resources"`
-	Units              map[string]Unit      `json:"units"` // map uses unit ID as key
+	Units              map[int]Unit         `json:"units"` // map uses unit ID as key
 }
 
 func CreateUserData(dc DataCache, time time.Time) UserData {
@@ -52,7 +53,7 @@ func CreateUserData(dc DataCache, time time.Time) UserData {
 		Campaign:           Campaign{Level: 1, LastCollectedAt: time},
 		DailyQuestProgress: make([]DailyQuestProgress, 0),
 		Resources:          make([]Resource, 0),
-		Units:              make(map[string]Unit),
+		Units:              make(map[int]Unit),
 	}
 
 	data.Resources = dc.Resources
