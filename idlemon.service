@@ -1,0 +1,20 @@
+[Unit]
+Description=Idlemon server
+After=network.target
+After=nginx.service
+After=postgresql.service
+After=redis.service
+Requires=nginx.service
+Requires=postgresql.service
+Requires=redis.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=idlemon
+ExecStart=/bin/idlemon-server -e /etc/idlemon/idlemon.conf
+
+[Install]
+WantedBy=multi-user.target

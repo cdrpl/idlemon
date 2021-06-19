@@ -38,6 +38,10 @@ Run the following commands to build and run the server with Docker.
 
 Docker compose is capable of setting up the server with a single command `docker compose up`. This will setup the server behind a NGINX reverse proxy, the server can be reached at localhost.
 
+### Systemd
+
+If you wish to use systemd to start the server an [example service file](/idlemon.service) is located in the project root.
+
 ### Authentication
 
 Many API routes can only be accessed by authenticated users. When a user successfully logs in an API token is generated and returned in the HTTP response. To access a restricted route the user ID and API token must be included in the Authorization header separated by a colon. Example: "Authorization=ID:TOKEN".
