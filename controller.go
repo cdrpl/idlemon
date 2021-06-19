@@ -319,45 +319,72 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	signInReq := GetReqDTO(r).(*SignInReq)
 
-	user := User{}
-	query := "SELECT id, name, pass, created_at, data FROM users WHERE email = $1"
-	err := c.db.QueryRow(r.Context(), query, signInReq.Email).Scan(&user.ID, &user.Name, &user.Pass, &user.CreatedAt, &user.Data)
+	var userID int
+	var pass string
+
+	query := "SELECT id, pass FROM users WHERE email = $1"
+	err := c.db.QueryRow(r.Context(), query, signInReq.Email).Scan(&userID, &pass)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			ErrRes(w, http.StatusUnauthorized)
 		} else {
-			log.Printf("sign in error: %v\n", err)
+			log.Printf("fail to select user row: %v\n", err)
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(signInReq.Pass))
+	err = bcrypt.CompareHashAndPassword([]byte(pass), []byte(signInReq.Pass))
 	if err != nil {
 		ErrRes(w, http.StatusUnauthorized)
 		return
 	}
 
-	token, err := CreateApiToken(r.Context(), c.rdb, user.ID)
+	token, err := CreateApiToken(r.Context(), c.rdb, userID)
 	if err != nil {
-		log.Printf("sign in error: %v\n", err)
+		log.Printf("fail to create API token: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// increase daily sign in quest count
-	user.Data.DailyQuestProgress[DAILY_QUEST_SIGN_IN].Count++
+	// start transaction for updating a user's daily sign in quest progress
+	// this is a separate query since bcrypt is slow and it would keep the transaction idle
 
-	// save updated user data
-	err = UpdateUser(r.Context(), c.db, user)
+	tx, err := c.db.Begin(r.Context())
 	if err != nil {
-		log.Printf("fail to update user data: %v\n", err)
+		log.Printf("fail to begin transaction: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	user, err := FindUserLock(r.Context(), tx, userID)
+	if err != nil {
+		log.Printf("fail to find user: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	user.Email = signInReq.Email
-	user.Pass = ""
+	signInQuest := &user.Data.DailyQuestProgress[DAILY_QUEST_SIGN_IN]
+
+	// increase sign in quest count if not completed
+	if !signInQuest.IsCompleted() {
+		signInQuest.Count++
+
+		if err := UpdateUserLock(r.Context(), tx, user); err != nil {
+			log.Printf("fail to update user data: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		if err := tx.Commit(r.Context()); err != nil {
+			log.Printf("fail to commit transaction: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	user.Pass = "" // don't return user's password in response
 
 	signInRes := SignInRes{
 		Token:         token,
@@ -388,7 +415,5 @@ func (c Controller) UserRename(w http.ResponseWriter, r *http.Request, p httprou
 	}
 
 	log.Printf("user %v change name to %v\n", id, req.Name)
-
-	res := map[string]string{"name": req.Name}
-	JsonRes(w, res)
+	JsonSuccess(w)
 }
