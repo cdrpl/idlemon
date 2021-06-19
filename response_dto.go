@@ -2,7 +2,6 @@ package main
 
 import "time"
 
-// Sign in response
 type SignInRes struct {
 	Token         string         `json:"token"`
 	User          User           `json:"user"`
@@ -19,5 +18,10 @@ type CampaignCollectRes struct {
 type DailyQuestCompleteRes struct {
 	Status      int         `json:"status"`
 	Message     string      `json:"message"`
+	Transaction Transaction `json:"transaction"`
+}
+
+type SummonUnitRes struct {
+	Unit        Unit        `json:"unit"`
 	Transaction Transaction `json:"transaction"`
 }

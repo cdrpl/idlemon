@@ -211,7 +211,13 @@ func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprou
 	}
 
 	log.Printf("user %v summoned a unit {templateId:%v}\n", user.ID, unit.TemplateID)
-	JsonRes(w, unit)
+	JsonRes(w, SummonUnitRes{
+		Unit: unit,
+		Transaction: Transaction{
+			Type:   TRANSACTION_GEMS,
+			Amount: -UNIT_SUMMON_COST,
+		},
+	})
 }
 
 /* Unit Routes */
