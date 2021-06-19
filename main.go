@@ -44,6 +44,7 @@ func main() {
 
 	if dropTables {
 		log.Println("dropping database tables")
+
 		if err := DropTables(context.Background(), db); err != nil {
 			log.Fatalf("fail to drop tables: %v\n", err)
 		}
@@ -55,10 +56,13 @@ func main() {
 		log.Fatalf("failed to load the data cache: %v\n", err)
 	}
 
-	log.Println("initializing database")
-	err = InitDatabase(context.Background(), db, dc)
-	if err != nil {
-		log.Fatalf("fail to init database: %v", err)
+	// init database
+	if os.Getenv("INIT_DATABASE") == "true" {
+		log.Println("initializing database")
+
+		if err := InitDatabase(context.Background(), db, dc); err != nil {
+			log.Fatalf("fail to init database: %v", err)
+		}
 	}
 
 	log.Println("connecting to redis")
