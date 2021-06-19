@@ -66,6 +66,7 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 	if err != nil {
 		log.Printf("campaign collect error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 	defer tx.Rollback(r.Context())
 
@@ -73,6 +74,7 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 	if err != nil {
 		log.Printf("fail to find user: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	exp, gold, expStones := user.Data.Campaign.Collect(&user)
@@ -82,6 +84,7 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 		if err != nil {
 			log.Printf("fail to update user data: %v\n", err)
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
 		}
 
 		if err := tx.Commit(r.Context()); err != nil {
@@ -174,6 +177,7 @@ func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p htt
 	if err != nil {
 		log.Printf("fail to begin transaction: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 	defer tx.Rollback(r.Context())
 
@@ -181,6 +185,7 @@ func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p htt
 	if err != nil {
 		log.Printf("fail to find user: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	if unit, ok := user.Data.Units[unitID]; ok {
