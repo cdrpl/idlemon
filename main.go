@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -99,7 +100,7 @@ func RunHTTPServer(server *http.Server) {
 	log.Printf("binding HTTP server to 0.0.0.0%v\n", server.Addr)
 
 	err := server.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalln(err)
 	}
 }
