@@ -135,7 +135,7 @@ func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, user *User) (Unit, er
 	template := RandUnitTemplateID(dataCache)
 
 	unit := CreateUnit(template)
-	AddUnitToUser(user, unit)
+	unit = AddUnitToUser(user, unit)
 	err := UpdateUser(ctx, db, *user)
 
 	return unit, err
