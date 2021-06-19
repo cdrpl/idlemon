@@ -6,6 +6,7 @@ type Resource struct {
 	Amount int `json:"amount"`
 }
 
+// Return a slice of all resources in the game.
 func Resources() []Resource {
 	resources := make([]Resource, 4)
 
