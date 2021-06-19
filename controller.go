@@ -158,6 +158,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
+	log.Printf("user %v completed daily quest %v", user.ID, questID)
 	res := DailyQuestCompleteRes{Status: 0, Reward: dailyQuest.Reward}
 	JsonRes(w, res)
 }
@@ -246,7 +247,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	log.Printf("new user registration: %v\n", req.Email)
+	log.Printf("new user registration: {name:%v email:%v}\n", req.Name, req.Email)
 	JsonSuccess(w)
 }
 
@@ -299,7 +300,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		UnitTemplates: c.dc.UnitTemplates,
 	}
 
-	log.Printf("user sign in: %v\n", signInReq.Email)
+	log.Printf("user sign in: {id:%v name:%v email:%v}\n", user.ID, user.Name, user.Email)
 	JsonRes(w, signInRes)
 }
 
@@ -321,7 +322,7 @@ func (c Controller) UserRename(w http.ResponseWriter, r *http.Request, p httprou
 		return
 	}
 
-	log.Printf("user ID %v change name to %v\n", id, req.Name)
+	log.Printf("user %v change name to %v\n", id, req.Name)
 
 	res := map[string]string{"name": req.Name}
 	JsonRes(w, res)
