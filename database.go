@@ -13,7 +13,7 @@ func CreateDBConn(ctx context.Context) (*pgxpool.Pool, error) {
 	pass := os.Getenv("DB_PASS")
 	db := os.Getenv("DB_NAME")
 	host := os.Getenv("DB_HOST")
-	maxConns := 10
+	maxConns := MAX_PG_CONN
 
 	connString := fmt.Sprintf("user=%v password=%v dbname=%v host=%v pool_max_conns=%v", user, pass, db, host, maxConns)
 

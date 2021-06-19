@@ -50,7 +50,12 @@ func TestMain(m *testing.M) {
 
 	log.SetOutput(ioutil.Discard)
 
-	InitDatabase(context.Background(), db, dataCache)
+	err = InitDatabase(context.Background(), db, dataCache)
+	if err != nil {
+		log.SetOutput(os.Stdout)
+		log.Fatalf("fail to init database: %v\n", err)
+		os.Exit(1)
+	}
 
 	rdb = CreateRedisClient()
 

@@ -44,7 +44,9 @@ func main() {
 
 	if dropTables {
 		log.Println("dropping database tables")
-		DropTables(context.Background(), db)
+		if err := DropTables(context.Background(), db); err != nil {
+			log.Fatalf("fail to drop tables: %v\n", err)
+		}
 	}
 
 	// init data cache

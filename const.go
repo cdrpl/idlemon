@@ -5,7 +5,6 @@ import "time"
 const (
 	VERSION           = "0.0.1"        // The current version of the server.
 	ENV_FILE          = ".env"         // Default path to the .env file
-	DB_CONN_RETRIES   = 6              // Number of database connection retries before exit
 	MAX_REQ_BODY_SIZE = 512            // Maximum number of bytes allowed in a request body.
 	API_TOKEN_LEN     = 32             // Number of characters in the API token.
 	API_TOKEN_TTL     = time.Hour * 12 // Time until the API token expires.
