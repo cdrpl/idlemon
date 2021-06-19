@@ -334,10 +334,39 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(pass), []byte(signInReq.Pass))
+	passBytes := []byte(signInReq.Pass)
+	hashBytes := []byte(pass)
+
+	err = bcrypt.CompareHashAndPassword(hashBytes, passBytes)
 	if err != nil {
 		ErrRes(w, http.StatusUnauthorized)
 		return
+	}
+
+	// check if hash cost must be updated
+	cost, err := bcrypt.Cost(hashBytes)
+	if err != nil {
+		log.Printf("fail to check password's hash cost: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// if cost is invalid, generate new hash and update database
+	if cost != BCRYPT_COST {
+		bytes, err := bcrypt.GenerateFromPassword(passBytes, BCRYPT_COST)
+		if err != nil {
+			log.Printf("fail to create new password hash: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		query := "UPDATE users SET pass = $1 WHERE id = $2"
+		_, err = c.db.Exec(r.Context(), query, bytes, userID)
+		if err != nil {
+			log.Printf("fail to update user password: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
 	token, err := CreateApiToken(r.Context(), c.rdb, userID)
