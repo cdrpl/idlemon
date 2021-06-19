@@ -12,11 +12,7 @@ func (dc *DataCache) Load() error {
 
 	dc.DailyQuests = DailyQuests()
 	dc.Resources = Resources()
-
 	dc.UnitTemplates, err = UnMarshallUnitTemplatesJson()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
