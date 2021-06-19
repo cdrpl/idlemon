@@ -141,7 +141,14 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 				return err
 			}
 
-			_, err = InsertUser(ctx, db, CreateUser(dc, ADMIN_NAME, ADMIN_EMAIL, string(hash)))
+			user := CreateUser(dc, ADMIN_NAME, ADMIN_EMAIL, string(hash))
+
+			// give admin user a lot of resources for easy testing
+			for _, resource := range dc.Resources {
+				user.Data.Resources[resource.ID].Amount = 2000000000
+			}
+
+			_, err = InsertUser(ctx, db, user)
 			if err != nil {
 				return err
 			}
