@@ -102,7 +102,7 @@ func InsertRandUser(db *pgxpool.Pool) (User, error) {
 		return User{}, err
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), BCRYPT_COST)
 	if err != nil {
 		return User{}, err
 	}

@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	VERSION           = "0.0.1"        // The current version of the server.
@@ -11,6 +13,7 @@ const (
 	MAX_PG_CONN       = 10             // Maximum number of open Postgres connections.
 	UNIT_ID_LEN       = 32             // Number of characters in a unit's ID.
 	UNIT_SUMMON_COST  = 250            // The cost to summon a unit.
+	BCRYPT_COST       = 11             // The bcrypt cost used to hash a user's password
 )
 
 // Default env values.

@@ -136,7 +136,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 		if errors.Is(err, pgx.ErrNoRows) {
 			pass := os.Getenv("ADMIN_PASS")
 
-			hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+			hash, err := bcrypt.GenerateFromPassword([]byte(pass), BCRYPT_COST)
 			if err != nil {
 				return err
 			}

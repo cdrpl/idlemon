@@ -298,7 +298,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Pass), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Pass), BCRYPT_COST)
 	if err != nil {
 		log.Printf("fail to hash user password: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
