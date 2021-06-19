@@ -40,7 +40,7 @@ Docker compose is capable of setting up the server with a single command `docker
 
 ### Systemd
 
-If you wish to use systemd to start the server an [example service file](/idlemon.service) is located in the project root.
+If you don't want to use Docker you can use systemd, an [example service file](/idlemon.service) is located in the project root.
 
 ### Authentication
 
