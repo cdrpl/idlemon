@@ -90,13 +90,13 @@ func WsConnectHandler(wsHub *WsHub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("websocket connection created")
-
 	client := &WsClient{wsHub: wsHub, conn: conn, send: make(chan []byte, 256)}
 	client.wsHub.register <- client
 
 	go client.writePump()
 	go client.readPump()
+
+	log.Println("websocket client connected")
 }
 
 func CreateWsHub(upgrader websocket.Upgrader) *WsHub {
