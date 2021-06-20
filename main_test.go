@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var router *httprouter.Router
@@ -35,13 +34,13 @@ func TestMain(m *testing.M) {
 	}
 
 	var err error
-	db, err = CreateDBConn(context.Background())
+	db, err = CreateDBConn(context.TODO())
 	if err != nil {
 		log.Fatalf("fail to create DB connection: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = DropTables(context.Background(), db)
+	err = DropTables(context.TODO(), db)
 	if err != nil {
 		log.Fatalf("fail to drop tables: %v\n", err)
 		os.Exit(1)
@@ -49,14 +48,14 @@ func TestMain(m *testing.M) {
 
 	log.SetOutput(ioutil.Discard)
 
-	err = InitDatabase(context.Background(), db, dataCache)
+	err = InitDatabase(context.TODO(), db, dataCache)
 	if err != nil {
 		log.SetOutput(os.Stdout)
 		log.Fatalf("fail to init database: %v\n", err)
 		os.Exit(1)
 	}
 
-	rdb = CreateRedisClient()
+	rdb = CreateRedisClient(context.TODO())
 
 	SeedRand()
 
@@ -96,33 +95,38 @@ func RandUser() (User, error) {
 	return user, nil
 }
 
-func InsertRandUser(db *pgxpool.Pool) (User, error) {
+func InsertRandUser(ctx context.Context, db *pgxpool.Pool) (User, error) {
 	user, err := RandUser()
 	if err != nil {
 		return User{}, err
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), BCRYPT_COST)
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return User{}, fmt.Errorf("fail to being transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	id, err := InsertUser(context.TODO(), tx, dataCache, CreateUser(dataCache, user.Name, user.Email, user.Pass))
 	if err != nil {
 		return User{}, err
 	}
 
-	id, err := InsertUser(context.Background(), db, dataCache, CreateUser(dataCache, user.Name, user.Email, string(hash)))
-	if err != nil {
-		return User{}, err
+	if err := tx.Commit(ctx); err != nil {
+		return User{}, fmt.Errorf("fail to commit transaction: %w", err)
 	}
 
-	user.ID = id
+	user.Id = id
 	return user, nil
 }
 
-func AuthenticatedUser(db *pgxpool.Pool, rdb *redis.Client) (string, User, error) {
-	user, err := InsertRandUser(db)
+func AuthenticatedUser(ctx context.Context, db *pgxpool.Pool, rdb *redis.Client) (string, User, error) {
+	user, err := InsertRandUser(ctx, db)
 	if err != nil {
 		return "", User{}, err
 	}
 
-	token, err := CreateApiToken(context.Background(), rdb, user.ID)
+	token, err := CreateApiToken(context.TODO(), rdb, user.Id)
 	if err != nil {
 		return "", User{}, err
 	}
@@ -131,12 +135,24 @@ func AuthenticatedUser(db *pgxpool.Pool, rdb *redis.Client) (string, User, error
 }
 
 // Create a random unit and insert it into the table.
-func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, user *User) (Unit, error) {
+func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, userId int) (Unit, error) {
 	template := RandUnitTemplateID(dataCache)
 
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return Unit{}, fmt.Errorf("fail to being transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
 	unit := CreateUnit(template)
-	unit = AddUnitToUser(user, unit)
-	err := UpdateUser(ctx, db, *user)
+	unit.Id, err = InsertUnit(ctx, tx, userId, unit)
+	if err != nil {
+		return unit, fmt.Errorf("fail to insert unit: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return unit, fmt.Errorf("fail to commit transaction: %w", err)
+	}
 
 	return unit, err
 }

@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Daily quest has a required number to complete it and a transaction representing the reward given for completion.
 type DailyQuest struct {
-	Required    int         `json:"required"`
-	Transaction Transaction `json:"transaction"`
+	Id          int
+	Required    int
+	Transaction Transaction
 }
 
 // Returns a slice of all the daily quests
@@ -16,6 +22,7 @@ func DailyQuests() []DailyQuest {
 
 	// require user to sign in
 	dailyQuests[DAILY_QUEST_SIGN_IN] = DailyQuest{
+		Id:       DAILY_QUEST_SIGN_IN,
 		Required: 1,
 		Transaction: Transaction{
 			Type:   TRANSACTION_GEMS,
@@ -27,35 +34,103 @@ func DailyQuests() []DailyQuest {
 }
 
 type DailyQuestProgress struct {
-	DailyQuestID    int       `json:"dailyQuestId"`
+	Id              int       `json:"id"`
+	UserId          int       `json:"-"`
+	DailyQuestId    int       `json:"dailyQuestId"`
 	Count           int       `json:"count"`
 	LastCompletedAt time.Time `json:"lastCompletedAt"`
 }
 
-func CreateDailyQuestProgress(id int) DailyQuestProgress {
-	// set before the start of today so the user can complete the quest even if they signed up today
+func CreateDailyQuestProgress() DailyQuestProgress {
+	// set before the start of today so the user can complete the quest even if they just signed up
 	lastCompletedAt := time.Now().Add(-time.Hour * 48).UTC().Round(time.Second)
 
-	return DailyQuestProgress{DailyQuestID: id, LastCompletedAt: lastCompletedAt}
+	return DailyQuestProgress{LastCompletedAt: lastCompletedAt}
 }
 
 // Will check if the quest has already been completed today.
-func (udq *DailyQuestProgress) IsCompleted() bool {
+func (dqp *DailyQuestProgress) IsCompleted() bool {
 	y, m, d := time.Now().UTC().Date()
 	startOfToday := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 
-	return udq.LastCompletedAt.Unix() >= startOfToday.Unix()
+	return dqp.LastCompletedAt.Unix() >= startOfToday.Unix()
 }
 
 // Will increase the count if the quest hasn't been completed today.
-func (udq *DailyQuestProgress) IncreaseCount() {
-	if !udq.IsCompleted() {
-		udq.Count++
+func (dqp *DailyQuestProgress) IncreaseCount(ctx context.Context, tx pgx.Tx) error {
+	if !dqp.IsCompleted() {
+		_, err := tx.Exec(ctx, "UPDATE daily_quest_progress SET count = count + 1 WHERE id = $1", dqp.Id)
+		if err != nil {
+			return fmt.Errorf("fail to update daily_quest_progress table: %w", err)
+		}
+
+		dqp.Count++
 	}
+
+	return nil
 }
 
 // Call this method when completing the daily quest. It will update the state of the struct.
-func (udq *DailyQuestProgress) Complete() {
-	udq.Count = 0
-	udq.LastCompletedAt = time.Now().UTC().Round(time.Second)
+func (dqp *DailyQuestProgress) Complete(ctx context.Context, tx pgx.Tx) error {
+	completedAt := time.Now().UTC().Round(time.Second)
+
+	query := "UPDATE daily_quest_progress SET count = 0, last_completed_at = $1 WHERE id = $2"
+	_, err := tx.Exec(ctx, query, completedAt, dqp.Id)
+	if err != nil {
+		return fmt.Errorf("fail to update daily_quest_progress table: %w", err)
+	}
+
+	dqp.Count = 0
+	dqp.LastCompletedAt = completedAt
+
+	return nil
+}
+
+func FindAllDailyQuestProgress(ctx context.Context, db *pgxpool.Pool, userId int) ([]DailyQuestProgress, error) {
+	dailyQuestProgress := make([]DailyQuestProgress, 0)
+
+	query := "SELECT id, daily_quest_id, count, last_completed_at FROM daily_quest_progress WHERE user_id = $1"
+	rows, err := db.Query(ctx, query, userId)
+	if err != nil {
+		return dailyQuestProgress, fmt.Errorf("faily to query daily_quest_progress table: %w", err)
+	}
+
+	for rows.Next() {
+		var progress DailyQuestProgress
+
+		err := rows.Scan(&progress.Id, &progress.DailyQuestId, &progress.Count, &progress.LastCompletedAt)
+		if err != nil {
+			return dailyQuestProgress, fmt.Errorf("fail to scan rows: %w", err)
+		}
+
+		dailyQuestProgress = append(dailyQuestProgress, progress)
+	}
+
+	return dailyQuestProgress, nil
+}
+
+func FindDailyQuestProgress(ctx context.Context, tx pgx.Tx, userId int, dailyQuestId int) (DailyQuestProgress, error) {
+	progress := DailyQuestProgress{UserId: userId, DailyQuestId: dailyQuestId}
+
+	query := "SELECT id, count, last_completed_at FROM daily_quest_progress WHERE (user_id = $1 AND daily_quest_id = $2)"
+	err := tx.QueryRow(ctx, query, userId, dailyQuestId).Scan(&progress.Id, &progress.Count, &progress.LastCompletedAt)
+	if err != nil {
+		return progress, fmt.Errorf("fail to query daily_quest_progress table: %w", err)
+	}
+
+	return progress, nil
+}
+
+func InsertDailyQuestProgress(ctx context.Context, tx pgx.Tx, dc DataCache, userId int) error {
+	for _, dailyQuest := range dc.DailyQuests {
+		progress := CreateDailyQuestProgress()
+
+		query := "INSERT INTO daily_quest_progress (user_id, daily_quest_id, last_completed_at) VALUES ($1, $2, $3)"
+		_, err := tx.Exec(ctx, query, userId, dailyQuest.Id, progress.LastCompletedAt)
+		if err != nil {
+			return fmt.Errorf("fail to insert daily quest progress: %w", err)
+		}
+	}
+
+	return nil
 }

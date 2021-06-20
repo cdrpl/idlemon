@@ -120,13 +120,13 @@ func TestNotFoundRoute(t *testing.T) {
 func TestCampaignCollectRoute(t *testing.T) {
 	AuthTest(t, router, "PUT", "/campaign/collect")
 
-	token, user, err := AuthenticatedUser(db, rdb)
+	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
 	if err != nil {
 		t.Fatalf("fail to create test user: %v", err)
 	}
 
 	req := httptest.NewRequest("PUT", "/campaign/collect", nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.Id, token))
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -140,7 +140,15 @@ func TestCampaignCollectRoute(t *testing.T) {
 		t.Fatalf("fail to unmarshall response body: %v", err)
 	}
 
-	if res.Exp != 0 || res.Gold != 0 || res.ExpStones != 0 {
+	if res.Transactions[0].Amount != 0 {
+		t.Fatalf("collected resources should be 0: %v", res)
+	}
+
+	if res.Transactions[1].Amount != 0 {
+		t.Fatalf("collected resources should be 0: %v", res)
+	}
+
+	if res.Transactions[2].Amount != 0 {
 		t.Fatalf("collected resources should be 0: %v", res)
 	}
 }
@@ -150,23 +158,36 @@ func TestCampaignCollectRoute(t *testing.T) {
 func TestUnitLockRoute(t *testing.T) {
 	AuthTest(t, router, "PUT", "/unit/1/toggle-lock")
 
-	token, user, err := AuthenticatedUser(db, rdb)
+	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
 	if err != nil {
 		t.Fatalf("fail to create test user: %v", err)
 	}
 
-	unit, err := InsertRandUnit(context.Background(), db, &user)
+	unit, err := InsertRandUnit(context.TODO(), db, user.Id)
 	if err != nil {
 		t.Fatalf("insert rand user error: %v", err)
 	}
 
-	req := httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit.ID), nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.ID, token))
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit.Id), nil)
+	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.Id, token))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	// unit must be locked in database
+	var isLocked bool
+
+	query := "SELECT is_locked FROM units WHERE id = $1"
+	err = db.QueryRow(context.TODO(), query, unit.Id).Scan(&isLocked)
+	if err != nil {
+		t.Fatalf("fail to query units table: %v", err)
+	}
+
+	if !isLocked {
+		t.Error("unit is not locked in the database")
 	}
 }
 
@@ -196,7 +217,7 @@ func TestUserSignUpRoute(t *testing.T) {
 	// user should exist
 	user := User{}
 	query := "SELECT id, name, email, pass, created_at FROM users WHERE name = $1"
-	err := db.QueryRow(context.Background(), query, userInsert.Name).Scan(&user.ID, &user.Name, &user.Email, &user.Pass, &user.CreatedAt)
+	err := db.QueryRow(context.TODO(), query, userInsert.Name).Scan(&user.Id, &user.Name, &user.Email, &user.Pass, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			t.Fatal("user was not present in the database")
@@ -238,7 +259,7 @@ func TestUserSignUpRoute(t *testing.T) {
 }
 
 func TestUserSignInRoute(t *testing.T) {
-	user, err := InsertRandUser(db)
+	user, err := InsertRandUser(context.TODO(), db)
 	if err != nil {
 		t.Fatalf("fail to create test user: %v", err)
 	}
@@ -269,8 +290,8 @@ func TestUserSignInRoute(t *testing.T) {
 	}
 
 	// id should be valid
-	if signInRes.User.ID != user.ID {
-		t.Errorf("invalid id in response, expected: %v, received: %v", user.ID, signInRes.User.ID)
+	if signInRes.User.Id != user.Id {
+		t.Errorf("invalid id in response, expected: %v, received: %v", user.Id, signInRes.User.Id)
 	}
 
 	// email should be valid
@@ -284,8 +305,8 @@ func TestUserSignInRoute(t *testing.T) {
 	}
 
 	// api token should exist
-	idS := fmt.Sprintf("%d", signInRes.User.ID)
-	result, err := rdb.Get(context.Background(), idS).Result()
+	idS := fmt.Sprintf("%d", signInRes.User.Id)
+	result, err := rdb.Get(context.TODO(), idS).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			t.Fatalf("api token was not present in redis")
@@ -320,7 +341,7 @@ func TestUserRenameRoute(t *testing.T) {
 
 	AuthTest(t, router, method, url)
 
-	token, user, err := AuthenticatedUser(db, rdb)
+	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
 	if err != nil {
 		t.Fatalf("fail to create test user: %v", err)
 	}
@@ -331,7 +352,7 @@ func TestUserRenameRoute(t *testing.T) {
 
 	req := httptest.NewRequest(method, url, bytes.NewBuffer(js))
 	req.Header.Set("Content-Type", "application/json")
-	SetAuthorization(req, user.ID, token)
+	SetAuthorization(req, user.Id, token)
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -341,7 +362,7 @@ func TestUserRenameRoute(t *testing.T) {
 
 	// name should be changed in database
 	userQuery := User{}
-	err = db.QueryRow(context.Background(), "SELECT name FROM users WHERE id = $1", user.ID).Scan(&userQuery.Name)
+	err = db.QueryRow(context.TODO(), "SELECT name FROM users WHERE id = $1", user.Id).Scan(&userQuery.Name)
 	if err != nil {
 		t.Errorf("expected name in database to equal %v, received: %v", newName, userQuery.Name)
 	}

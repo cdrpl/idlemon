@@ -66,6 +66,9 @@ const (
 // Transaction types.
 const (
 	TRANSACTION_GEMS = iota
+	TRANSACTION_GOLD
+	TRANSACTION_EXP_STONES
+	TRANSACTION_USER_EXP
 )
 
 // Admin user details.

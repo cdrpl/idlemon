@@ -1,2 +1,5 @@
+DROP TABLE IF EXISTS units;
+DROP TABLE IF EXISTS daily_quest_progress;
+DROP TABLE IF EXISTS campaign;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS users;

@@ -1,20 +1,27 @@
 package main
 
-import "log"
+import (
+	"context"
+	"log"
 
-// Represents a resource transaction.
+	"github.com/jackc/pgx/v4"
+)
+
+// Represents a modification of a integer value such as gold or user exp.
 type Transaction struct {
 	Type   int `json:"type"`
 	Amount int `json:"amount"`
 }
 
-// Will apply the transaction to a user.
-func (r Transaction) Apply(user *User) {
+// Will apply the transaction to the correct table row.
+func (r Transaction) Apply(ctx context.Context, tx pgx.Tx, userId int) error {
 	switch r.Type {
 	case TRANSACTION_GEMS:
-		user.Data.Resources[RESOURCE_GEMS].Amount += r.Amount
+		return IncResource(ctx, tx, userId, r.Type, r.Amount)
 
 	default:
 		log.Fatalf("failed to apply transaction of type %v, not handled in switch statement\n", r.Type)
 	}
+
+	return nil
 }

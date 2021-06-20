@@ -1,19 +1,27 @@
 package main
 
+import (
+	"context"
+	"fmt"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+)
+
 type Unit struct {
-	ID         int  `json:"id"`
-	TemplateID int  `json:"templateId"`
-	Level      int  `json:"level"`
-	Stars      int  `json:"stars"`
-	IsLocked   bool `json:"isLocked"`
+	Id       int  `json:"id"`
+	Template int  `json:"template"`
+	Level    int  `json:"level"`
+	Stars    int  `json:"stars"`
+	IsLocked bool `json:"isLocked"`
 }
 
 // Create a unit with the given template ID.
 func CreateUnit(templateID int) Unit {
 	return Unit{
-		TemplateID: templateID,
-		Level:      1,
-		Stars:      1,
+		Template: templateID,
+		Level:    1,
+		Stars:    1,
 	}
 }
 
@@ -23,20 +31,35 @@ func RandUnit(dc DataCache) Unit {
 	return CreateUnit(template)
 }
 
-// Add unit to the user's units map. Will set the unit's ID and return it.
-func AddUnitToUser(user *User, unit Unit) Unit {
-	id := user.Data.UnitSerial + 1
+// Will insert a unit into the database and return the unit ID.
+func InsertUnit(ctx context.Context, tx pgx.Tx, userId int, unit Unit) (int, error) {
+	var unitId int
 
-	// if ID is taken, increment ID until empty one is found
-	_, ok := user.Data.Units[id]
-	for ok {
-		id++
-		_, ok = user.Data.Units[id]
+	query := "INSERT INTO units (user_id, template) VALUES ($1, $2) RETURNING id"
+	err := tx.QueryRow(ctx, query, userId, unit.Template).Scan(&unitId)
+
+	return unitId, err
+}
+
+func FindUnits(ctx context.Context, db *pgxpool.Pool, userId int) ([]Unit, error) {
+	units := make([]Unit, 0)
+
+	query := "SELECT id, template, level, stars, is_locked FROM units WHERE user_id = $1"
+	rows, err := db.Query(ctx, query, userId)
+	if err != nil {
+		return units, fmt.Errorf("fail to query units table: %w", err)
 	}
 
-	unit.ID = id
-	user.Data.Units[id] = unit
-	user.Data.UnitSerial = id
+	for rows.Next() {
+		var unit Unit
 
-	return unit
+		err := rows.Scan(&unit.Id, &unit.Template, &unit.Level, &unit.Stars, &unit.IsLocked)
+		if err != nil {
+			return units, fmt.Errorf("fail to scan into unit: %w", err)
+		}
+
+		units = append(units, unit)
+	}
+
+	return units, nil
 }

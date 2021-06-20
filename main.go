@@ -37,8 +37,12 @@ func main() {
 	envFile, dropTables := parseFlags()
 	LoadEnv(envFile, VERSION)
 
+	// startup context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
 	log.Println("creating Postgres pool")
-	db, err := CreateDBConn(context.Background())
+	db, err := CreateDBConn(ctx)
 	if err != nil {
 		log.Fatalf("failed to create postgres pool: %v\n", err)
 	}
@@ -46,7 +50,7 @@ func main() {
 	if dropTables {
 		log.Println("dropping database tables")
 
-		if err := DropTables(context.Background(), db); err != nil {
+		if err := DropTables(ctx, db); err != nil {
 			log.Fatalf("fail to drop tables: %v\n", err)
 		}
 	}
@@ -61,13 +65,13 @@ func main() {
 	if os.Getenv("INIT_DATABASE") == "true" {
 		log.Println("initializing database")
 
-		if err := InitDatabase(context.Background(), db, dc); err != nil {
+		if err := InitDatabase(ctx, db, dc); err != nil {
 			log.Fatalf("fail to init database: %v", err)
 		}
 	}
 
 	log.Println("connecting to redis")
-	rdb := CreateRedisClient()
+	rdb := CreateRedisClient(ctx)
 
 	SeedRand()
 

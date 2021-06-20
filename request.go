@@ -17,7 +17,7 @@ func ReadReqBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
 }
 
 // Get the user ID from the request. Will call log.Fatal if error occurs during type cast.
-func GetUserID(r *http.Request) int {
+func GetUserId(r *http.Request) int {
 	id, ok := r.Context().Value(UserIdCtx).(int)
 	if !ok {
 		log.Println("failed to fetch user ID from request context") // this should never fail if auth middleware is correctly used
@@ -27,7 +27,7 @@ func GetUserID(r *http.Request) int {
 }
 
 // Get the request data object from the request.
-func GetReqDTO(r *http.Request) RequestDTO {
+func GetReqDto(r *http.Request) RequestDTO {
 	dto, ok := r.Context().Value(ReqDtoCtx).(RequestDTO)
 	if !ok {
 		log.Println("failed to fetch DTO from request context") // this should never fail if body middleware is correctly used
