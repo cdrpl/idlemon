@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/jackc/pgx/v4"
@@ -38,8 +37,6 @@ func (c *Campaign) Collect(ctx context.Context, tx pgx.Tx) ([3]Transaction, erro
 	transactions[0] = Transaction{Type: TRANSACTION_USER_EXP}
 	transactions[1] = Transaction{Type: TRANSACTION_GOLD}
 	transactions[2] = Transaction{Type: TRANSACTION_EXP_STONES}
-
-	log.Println(c.Level)
 
 	// min time interval between collections
 	if timeDiff < time.Second {
