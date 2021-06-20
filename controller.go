@@ -305,7 +305,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 		return
 	}
 
-	_, err = InsertUser(r.Context(), c.db, CreateUser(c.dc, req.Name, req.Email, string(hash)))
+	_, err = InsertUser(r.Context(), c.db, c.dc, CreateUser(c.dc, req.Name, req.Email, string(hash)))
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -413,7 +413,12 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		}
 	}
 
-	user.Pass = "" // don't return user's password in response
+	user.Data.Resources, err = FindResources(r.Context(), c.db, userID)
+	if err != nil {
+		log.Printf("fail to find user resources: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	signInRes := SignInRes{
 		Token:         token,

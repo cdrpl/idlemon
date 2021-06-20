@@ -9,3 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE(name),
     UNIQUE(email)
 );
+
+CREATE TABLE IF NOT EXISTS resources (
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL,
+    type integer NOT NULL,
+    amount integer NOT NULL DEFAULT 0 CHECK (amount >= 0),
+
+    UNIQUE(user_id, type),
+    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);

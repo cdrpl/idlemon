@@ -107,7 +107,7 @@ func InsertRandUser(db *pgxpool.Pool) (User, error) {
 		return User{}, err
 	}
 
-	id, err := InsertUser(context.Background(), db, CreateUser(dataCache, user.Name, user.Email, string(hash)))
+	id, err := InsertUser(context.Background(), db, dataCache, CreateUser(dataCache, user.Name, user.Email, string(hash)))
 	if err != nil {
 		return User{}, err
 	}

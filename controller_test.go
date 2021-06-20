@@ -177,6 +177,7 @@ func TestUserSignUpRoute(t *testing.T) {
 	js, _ := json.Marshal(userInsert)
 
 	req := httptest.NewRequest("POST", "/user/sign-up", bytes.NewBuffer(js))
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -227,11 +228,12 @@ func TestUserSignUpRoute(t *testing.T) {
 
 	// should return 400 with invalid json
 	req = httptest.NewRequest("POST", "/user/sign-up", bytes.NewBuffer([]byte("invalid {json {{ 'f}")))
+	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expect status 400, received: %v", status)
+		t.Errorf("expect status 400, received: %v, %v", status, rr.Body.String())
 	}
 }
 
@@ -245,6 +247,7 @@ func TestUserSignInRoute(t *testing.T) {
 	js, _ := json.Marshal(signInReq)
 
 	req := httptest.NewRequest("POST", "/user/sign-in", bytes.NewBuffer(js))
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -327,23 +330,13 @@ func TestUserRenameRoute(t *testing.T) {
 	js, _ := json.Marshal(renameReq)
 
 	req := httptest.NewRequest(method, url, bytes.NewBuffer(js))
+	req.Header.Set("Content-Type", "application/json")
 	SetAuthorization(req, user.ID, token)
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	response := User{}
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
-	if err != nil {
-		t.Errorf("fail to unmarshal sign the response: %v", err)
-	}
-
-	// new name should be returned
-	if response.Name != newName {
-		t.Errorf("expected response name to equal %v, received: %v", newName, response.Name)
 	}
 
 	// name should be changed in database

@@ -20,11 +20,12 @@ type User struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
-	Pass      string    `json:"pass"`
+	Pass      string    `json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
 	Data      UserData  `json:"data"`
 }
 
+// Create a user struct with CreatedAt set to now.
 func CreateUser(dc DataCache, name string, email string, pass string) User {
 	now := time.Now().UTC().Round(time.Second)
 
@@ -117,13 +118,33 @@ func UpdateUserLock(ctx context.Context, tx pgx.Tx, user User) error {
 }
 
 // Will insert the user into the database. Returns the user's ID.
-func InsertUser(ctx context.Context, db *pgxpool.Pool, user User) (int, error) {
-	var userID int
+func InsertUser(ctx context.Context, db *pgxpool.Pool, dc DataCache, user User) (int, error) {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
 
+	var userId int
 	query := "INSERT INTO users (name, email, pass, created_at, data) VALUES ($1, $2, $3, $4, $5) RETURNING id"
-	err := db.QueryRow(ctx, query, user.Name, user.Email, user.Pass, user.CreatedAt, user.Data).Scan(&userID)
+	err = tx.QueryRow(ctx, query, user.Name, user.Email, user.Pass, user.CreatedAt, user.Data).Scan(&userId)
+	if err != nil {
+		return userId, err
+	}
 
-	return userID, err
+	// insert resource rows
+	for i := range dc.Resources {
+		query := "INSERT INTO resources (user_id, type) VALUES ($1, $2)"
+
+		_, err := tx.Exec(ctx, query, userId, i)
+		if err != nil {
+			return userId, err
+		}
+	}
+
+	err = tx.Commit(ctx)
+
+	return userId, err
 }
 
 // Will insert the admin user if it doesn't exist.
@@ -145,10 +166,10 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 
 			// give admin user a lot of resources for easy testing
 			for _, resource := range dc.Resources {
-				user.Data.Resources[resource.ID].Amount = 2000000000
+				user.Data.Resources[resource.Id].Amount = 2000000000
 			}
 
-			_, err = InsertUser(ctx, db, user)
+			_, err = InsertUser(ctx, db, dc, user)
 			if err != nil {
 				return err
 			}
