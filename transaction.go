@@ -18,7 +18,7 @@ type Transaction struct {
 func (r Transaction) Apply(ctx context.Context, tx pgx.Tx, userId uuid.UUID) error {
 	switch r.Type {
 	case TRANSACTION_GEMS:
-		return IncResource(ctx, tx, userId, r.Type, r.Amount)
+		return IncResource(ctx, tx, userId, RESOURCE_GEMS, r.Amount)
 
 	default:
 		log.Fatalf("failed to apply transaction of type %v, not handled in switch statement\n", r.Type)
