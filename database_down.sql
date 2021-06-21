@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS chat_messages;
 DROP TABLE IF EXISTS units;
 DROP TABLE IF EXISTS daily_quest_progress;
 DROP TABLE IF EXISTS campaign;

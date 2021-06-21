@@ -140,6 +140,7 @@ type WebSocketChatMessage struct {
 	Message    string `json:"message"`
 }
 
+// Create a WebSocketMessage with a WebSocketChatMessage struct in the Data field.
 func CreateWebSocketChatMessage(senderName string, message string) WebSocketMessage {
 	chatMsg := WebSocketChatMessage{
 		SenderName: senderName,
@@ -148,7 +149,7 @@ func CreateWebSocketChatMessage(senderName string, message string) WebSocketMess
 
 	bytes, err := json.Marshal(chatMsg)
 	if err != nil {
-		log.Printf("fail to marshall chat message: %v\n", err)
+		log.Printf("fail to marshall chat message: %v\n", err) // just log error since this should never fail
 	}
 
 	wsMsg := WebSocketMessage{

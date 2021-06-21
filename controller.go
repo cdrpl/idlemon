@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -107,6 +108,38 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 
 	log.Printf("user %v has collected resources: %+v\n", userId, transactions)
 	JsonRes(w, res)
+}
+
+/* Chat Routes */
+
+func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	userId := GetUserId(r)
+	request := GetReqDto(r).(*ChatMessageSendReq)
+	now := time.Now().UTC().Round(time.Second)
+
+	query := "INSERT INTO chat_messages (user_id, message, sent_at) VALUES ($1, $2, $3)"
+	_, err := c.db.Exec(r.Context(), query, userId, request.Message, now)
+	if err != nil {
+		log.Printf("fail to insert into chat_messages table: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var userName string
+	query = "SELECT name FROM users WHERE id = $1"
+	err = c.db.QueryRow(r.Context(), query, userId).Scan(&userName)
+	if err != nil {
+		log.Printf("fail to fetch name from users table: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	wsMsg := CreateWebSocketChatMessage(userName, request.Message)
+	c.wsHub.broadcast <- wsMsg
+
+	log.Printf("user %v sent chat message: %v\n", userId, request.Message)
+
+	JsonSuccess(w)
 }
 
 /* Daily Quest Routes */

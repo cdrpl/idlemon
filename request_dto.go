@@ -8,6 +8,14 @@ type RequestDTO interface {
 	Sanitize()
 }
 
+type ChatMessageSendReq struct {
+	Message string `json:"message" validate:"required,min=1,max=255"`
+}
+
+func (r *ChatMessageSendReq) Sanitize() {
+	r.Message = strings.TrimSpace(r.Message)
+}
+
 type SignUpReq struct {
 	Name  string `json:"name" validate:"required,alphanum,min=2,max=16"`
 	Email string `json:"email" validate:"required,email,max=255"`

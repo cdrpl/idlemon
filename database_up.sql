@@ -52,3 +52,11 @@ CREATE TABLE IF NOT EXISTS units (
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    sent_at TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);

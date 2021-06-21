@@ -30,6 +30,9 @@ func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, wsHub *WsHub, dc DataCach
 	// campaign routes
 	router.PUT("/campaign/collect", auth(controller.CampaignCollect))
 
+	// chat routes
+	router.POST("/chat/message/send", auth(body(typeOf(ChatMessageSendReq{}), controller.ChatMessageSend)))
+
 	// daily quest routes
 	router.PUT("/daily-quest/:id/complete", auth(controller.DailyQuestComplete))
 
