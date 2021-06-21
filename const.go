@@ -77,12 +77,6 @@ const (
 	TRANSACTION_USER_EXP
 )
 
-// Admin user details.
-const (
-	ADMIN_NAME  = "Admin"
-	ADMIN_EMAIL = "admin@idlemon.com"
-)
-
 const (
 	WS_WRITE_TIMOUT      = 10 * time.Second           // Time allowed to write a message to the peer.
 	WS_PONG_TIMEOUT      = 60 * time.Second           // Pong must be received before this timout or else the connection will be closed.

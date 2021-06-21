@@ -56,7 +56,7 @@ NGINX can be used as a reverse proxy, access logger, rate limiter, and gzip comp
 
 ### Admin User Account
 
-An admin account will be created during startup if the env var `INIT_DATABASE` is set to true. The email is set using the `ADMIN_EMAIL` constant in [const.go](/const.go) and the password is set using the `ADMIN_PASS` environment variable.
+An admin account will be created during startup if the env var `INIT_DATABASE` is set to true. The admin account details can be set through the env vars `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASS`.
 
 ## Development
 

@@ -69,8 +69,7 @@ func InsertUser(ctx context.Context, tx pgx.Tx, dc DataCache, user User) error {
 
 // Will insert the admin user if it doesn't exist.
 func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error {
-	pass := os.Getenv("ADMIN_PASS")
-	user := CreateUser(dc, ADMIN_NAME, ADMIN_EMAIL, pass)
+	user := CreateUser(dc, os.Getenv("ADMIN_NAME"), os.Getenv("ADMIN_EMAIL"), os.Getenv("ADMIN_PASS"))
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -100,7 +99,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 		return fmt.Errorf("fail to commit transaction: %w", err)
 	}
 
-	log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", user.Id, ADMIN_NAME, ADMIN_EMAIL)
+	log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", user.Id, user.Name, user.Email)
 
 	return nil
 }
