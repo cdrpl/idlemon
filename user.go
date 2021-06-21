@@ -49,7 +49,7 @@ func InsertUser(ctx context.Context, tx pgx.Tx, dc DataCache, user User) error {
 	query := "INSERT INTO users (id, name, email, pass, created_at) VALUES ($1, $2, $3, $4, $5)"
 	_, err = tx.Exec(ctx, query, user.Id, user.Name, user.Email, hash, user.CreatedAt)
 	if err != nil {
-		return fmt.Errorf("fail to insert user row: %w", err)
+		return err
 	}
 
 	if err := InsertResources(ctx, tx, dc, user.Id); err != nil {
