@@ -155,7 +155,7 @@ func TestCampaignCollectRoute(t *testing.T) {
 
 /* Daily Quest Routes */
 
-func TestCompleteDailyQuest(t *testing.T) {
+func TestDailyQuestComplete(t *testing.T) {
 	url := fmt.Sprintf("/daily-quest/%v/complete", DAILY_QUEST_SIGN_IN)
 	AuthTest(t, router, "PUT", url)
 
