@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"log"
-	"net/http"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -71,38 +68,6 @@ func (c *WsClient) writePump() {
 	}
 }
 
-func WsConnectHandler(ctx context.Context, rdb *redis.Client, wsHub *WsHub, w http.ResponseWriter, r *http.Request) {
-	id, token := ParseAuthHeader(r.Header.Get("Authorization"))
-
-	authenticated, err := ValidateApiToken(r.Context(), id, token, rdb)
-	if err != nil {
-		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if authenticated {
-		userId, err := uuid.Parse(id)
-		if err != nil {
-			log.Printf("fail to parse user ID: %v\n", err)
-			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		conn, err := wsHub.upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("fail to upgrade WebSocket connection: %v\n", err)
-			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		client := &WsClient{wsHub: wsHub, userId: userId, conn: conn, send: make(chan WebSocketMessage, 256)}
-		wsHub.registerClient <- client
-
-		go client.writePump()
-		go client.readPump()
-	}
-}
-
 // WsHub maintains the set of active clients and broadcasts messages to the clients.
 type WsHub struct {
 	clients          map[uuid.UUID]*WsClient // Key is the user's ID.
@@ -163,10 +128,6 @@ func (h *WsHub) Run() {
 			h.shutdown <- true // signifies shutdown complete
 		}
 	}
-}
-
-func (h *WsHub) AuthenticateClient(client *WsClient) bool {
-	return true
 }
 
 type WebSocketMessage struct {

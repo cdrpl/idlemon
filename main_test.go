@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 	wsHub := CreateWsHub(upgrader)
 	go wsHub.Run()
 
-	router = CreateRouter(db, rdb, dataCache, wsHub)
+	router = CreateRouter(db, rdb, wsHub, dataCache)
 
 	os.Exit(m.Run())
 }

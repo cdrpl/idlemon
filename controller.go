@@ -18,14 +18,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateController(db *pgxpool.Pool, rdb *redis.Client, dc DataCache) Controller {
-	return Controller{db: db, rdb: rdb, dc: dc}
+func CreateController(db *pgxpool.Pool, rdb *redis.Client, wsHub *WsHub, dataCache DataCache) Controller {
+	return Controller{
+		db:        db,
+		rdb:       rdb,
+		wsHub:     wsHub,
+		dataCache: dataCache,
+	}
 }
 
 type Controller struct {
-	db  *pgxpool.Pool
-	rdb *redis.Client
-	dc  DataCache
+	db        *pgxpool.Pool
+	rdb       *redis.Client
+	wsHub     *WsHub
+	dataCache DataCache
 }
 
 /* App Routes */
@@ -130,7 +136,7 @@ func (c Controller) DailyQuestComplete(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	dailyQuest := c.dc.DailyQuests[questProgress.DailyQuestId]
+	dailyQuest := c.dataCache.DailyQuests[questProgress.DailyQuestId]
 
 	if questProgress.IsCompleted() {
 		JsonRes(w, DailyQuestCompleteRes{Status: 1, Message: "already completed"})
@@ -193,7 +199,7 @@ func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprou
 
 	resource.Amount -= UNIT_SUMMON_COST
 
-	unit := RandUnit(c.dc)
+	unit := RandUnit(c.dataCache)
 
 	if err := InsertUnit(r.Context(), tx, userId, unit); err != nil {
 		log.Printf("fail to insert unit: %v\n", err)
@@ -300,7 +306,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 	}
 	defer tx.Rollback(r.Context())
 
-	err = InsertUser(r.Context(), tx, c.dc, CreateUser(c.dc, req.Name, req.Email, req.Pass))
+	err = InsertUser(r.Context(), tx, c.dataCache, CreateUser(c.dataCache, req.Name, req.Email, req.Pass))
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
@@ -445,7 +451,7 @@ func (c Controller) SignIn(w http.ResponseWriter, r *http.Request, p httprouter.
 		DailyQuestProgress: dailyQuestProgress,
 		Resources:          resources,
 		Units:              units,
-		UnitTemplates:      c.dc.UnitTemplates,
+		UnitTemplates:      c.dataCache.UnitTemplates,
 	}
 
 	log.Printf("user sign in: {id:%v name:%v email:%v}\n", user.Id, user.Name, user.Email)
@@ -472,4 +478,28 @@ func (c Controller) UserRename(w http.ResponseWriter, r *http.Request, p httprou
 
 	log.Printf("user %v change name to %v\n", id, req.Name)
 	JsonSuccess(w)
+}
+
+// WebSocket connection handler
+func (c Controller) WebSocketConnectionHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	userId := GetUserId(r)
+
+	conn, err := c.wsHub.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("fail to upgrade WebSocket connection: %v\n", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	client := &WsClient{
+		wsHub:  c.wsHub,
+		userId: userId,
+		conn:   conn,
+		send:   make(chan WebSocketMessage, 256),
+	}
+
+	c.wsHub.registerClient <- client
+
+	go client.writePump()
+	go client.readPump()
 }

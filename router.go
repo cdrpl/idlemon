@@ -9,11 +9,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, dc DataCache, wsHub *WsHub) *httprouter.Router {
+func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, wsHub *WsHub, dc DataCache) *httprouter.Router {
 	router := httprouter.New()
 
 	// controllers
-	controller := CreateController(db, rdb, dc)
+	controller := CreateController(db, rdb, wsHub, dc)
 
 	// middleware
 	auth := CreateRequireTokenMiddleware(rdb).Middleware
@@ -44,16 +44,14 @@ func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, dc DataCache, wsHub *WsHu
 	router.POST("/user/sign-in", body(typeOf(SignInReq{}), controller.SignIn))
 	router.PUT("/user/rename", auth(body(typeOf(UserRenameReq{}), controller.UserRename)))
 
+	// WebSocket upgrade route
+	router.GET("/ws", auth(controller.WebSocketConnectionHandler))
+
 	// method not allowed
 	router.MethodNotAllowed = http.HandlerFunc(controller.MethodNotAllowed)
 
 	// not found handler
 	router.NotFound = http.HandlerFunc(controller.NotFound)
-
-	// WebSocket route
-	router.GET("/ws", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		WsConnectHandler(r.Context(), rdb, wsHub, w, r)
-	})
 
 	return router
 }

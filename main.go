@@ -86,7 +86,7 @@ func main() {
 	port := fmt.Sprintf(":%v", os.Getenv("PORT"))
 	server := &http.Server{
 		Addr:    port,
-		Handler: CreateRouter(db, rdb, dc, wsHub),
+		Handler: CreateRouter(db, rdb, wsHub, dc),
 	}
 	go RunHTTPServer(server)
 
