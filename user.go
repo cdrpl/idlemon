@@ -72,12 +72,6 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 	pass := os.Getenv("ADMIN_PASS")
 	user := CreateUser(dc, ADMIN_NAME, ADMIN_EMAIL, pass)
 
-	userId, err := uuid.Parse(ADMIN_ID)
-	if err != nil {
-		return fmt.Errorf("fail to parse admin id: %w", err)
-	}
-	user.Id = userId
-
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("fail to begin transaction: %w", err)
@@ -106,7 +100,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 		return fmt.Errorf("fail to commit transaction: %w", err)
 	}
 
-	log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", ADMIN_ID, ADMIN_NAME, ADMIN_EMAIL)
+	log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", user.Id, ADMIN_NAME, ADMIN_EMAIL)
 
 	return nil
 }

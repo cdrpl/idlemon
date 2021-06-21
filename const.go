@@ -79,7 +79,6 @@ const (
 
 // Admin user details.
 const (
-	ADMIN_ID    = "00214d90-693a-46c3-b975-1a37b1b51e95"
 	ADMIN_NAME  = "Admin"
 	ADMIN_EMAIL = "admin@idlemon.com"
 )
