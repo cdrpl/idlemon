@@ -246,6 +246,74 @@ func TestDailyQuestComplete(t *testing.T) {
 	}
 }
 
+/* Summon Routes */
+
+func TestSummonUnit(t *testing.T) {
+	url := "/summon/unit"
+	AuthTest(t, router, "PUT", url)
+
+	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
+	if err != nil {
+		t.Fatalf("fail to create test user: %v", err)
+	}
+
+	req := httptest.NewRequest("PUT", url, nil)
+	SetAuthorization(req, user.Id, token)
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	// should receive 400 for not enough gems
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Fatalf("expect status 400, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	// give user some gems
+	query := "UPDATE resources SET amount = $1 WHERE (user_id = $2 AND type = $3)"
+	_, err = db.Exec(context.TODO(), query, UNIT_SUMMON_COST, user.Id, RESOURCE_GEMS)
+	if err != nil {
+		t.Fatalf("fail to update resources table: %v", err)
+	}
+
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	// should receive 200
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	var response SummonUnitRes
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("fail to unmarshal response: %v", err)
+	}
+
+	// unit should exist in database
+	var template int
+	query = "SELECT template FROM units WHERE (id = $1 AND user_id = $2)"
+	err = db.QueryRow(context.TODO(), query, response.Unit.Id, user.Id).Scan(&template)
+	if err != nil {
+		t.Errorf("fail to query units table: %v", err)
+	}
+
+	if template != response.Unit.Template {
+		t.Errorf("unit template in database did not match response, expect: %v, receive: %v", response.Unit.Template, template)
+	}
+
+	// resource table should be updated
+	var amount int
+	query = "SELECT amount FROM resources WHERE (user_id = $1 AND type = $2)"
+	_, err = db.Exec(context.TODO(), query, user.Id, RESOURCE_GEMS)
+	if err != nil {
+		t.Fatalf("fail to query resources table: %v", err)
+	}
+
+	if amount != 0 {
+		t.Fatalf("expect amount in database to equal 0, receive: %v", amount)
+	}
+}
+
 /* Unit Routes */
 
 func TestUnitLockRoute(t *testing.T) {
