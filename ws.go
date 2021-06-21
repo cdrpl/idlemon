@@ -169,21 +169,31 @@ func (h *WsHub) AuthenticateClient(client *WsClient) bool {
 	return true
 }
 
-type WebSocketMessage interface {
-	ToJson() []byte
+type WebSocketMessage struct {
+	Type int    `json:"type"`
+	Data []byte `json:"data"`
 }
 
 type WebSocketChatMessage struct {
-	Type       int    `json:"type"`
 	SenderName string `json:"senderName"`
 	Message    string `json:"message"`
 }
 
-func (msg WebSocketChatMessage) ToJson() []byte {
-	bytes, err := json.Marshal(msg)
-	if err != nil {
-		log.Printf("fail to marshall WebSocketChatMessage: %v\n", msg)
+func CreateWebSocketChatMessage(senderName string, message string) WebSocketMessage {
+	chatMsg := WebSocketChatMessage{
+		SenderName: senderName,
+		Message:    message,
 	}
 
-	return bytes
+	bytes, err := json.Marshal(chatMsg)
+	if err != nil {
+		log.Printf("fail to marshall chat message: %v\n", err)
+	}
+
+	wsMsg := WebSocketMessage{
+		Type: WS_CHAT_MESSAGE,
+		Data: bytes,
+	}
+
+	return wsMsg
 }

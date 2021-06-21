@@ -64,6 +64,11 @@ const (
 	DAILY_QUEST_SIGN_IN = iota
 )
 
+// WebSocket message types.
+const (
+	WS_CHAT_MESSAGE = iota
+)
+
 // Transaction types.
 const (
 	TRANSACTION_GEMS = iota
