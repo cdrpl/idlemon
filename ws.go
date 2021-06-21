@@ -10,14 +10,20 @@ import (
 )
 
 type WsClient struct {
-	wsHub *WsHub
-	conn  *websocket.Conn
-	send  chan []byte // Buffered channel of outbound messages.
+	conn          *websocket.Conn
+	send          chan []byte // Buffered channel of outbound messages.
+	userId        int
+	authenticated bool
+	wsHub         *WsHub
 }
 
 func (c *WsClient) readPump() {
 	defer func() {
-		c.wsHub.unregister <- c
+		if c.authenticated {
+			c.wsHub.unregisterClient <- c
+		} else {
+			c.wsHub.unregisterAnon <- c
+		}
 		c.conn.Close()
 	}()
 
@@ -91,56 +97,105 @@ func WsConnectHandler(wsHub *WsHub, w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &WsClient{wsHub: wsHub, conn: conn, send: make(chan []byte, 256)}
-	client.wsHub.register <- client
+	wsHub.registerAnon <- client
 
 	go client.writePump()
 	go client.readPump()
 
-	log.Println("websocket client connected")
+	// close anon connection if it doesn't authenticate in time
+	go func() {
+		time.Sleep(WS_AUTH_TIMEOUT)
+		wsHub.unregisterAnon <- client
+	}()
+}
+
+// WsHub maintains the set of active clients and broadcasts messages to the clients.
+type WsHub struct {
+	clients          map[int]*WsClient
+	anonClients      map[*WsClient]bool
+	registerClient   chan *WsClient
+	registerAnon     chan *WsClient
+	unregisterClient chan *WsClient
+	unregisterAnon   chan *WsClient
+	broadcast        chan []byte
+	shutdown         chan bool
+	upgrader         websocket.Upgrader
 }
 
 func CreateWsHub(upgrader websocket.Upgrader) *WsHub {
 	return &WsHub{
-		broadcast:  make(chan []byte),
-		register:   make(chan *WsClient),
-		unregister: make(chan *WsClient),
-		clients:    make(map[*WsClient]bool),
-		upgrader:   upgrader,
+		clients:          make(map[int]*WsClient),
+		anonClients:      make(map[*WsClient]bool),
+		registerClient:   make(chan *WsClient),
+		registerAnon:     make(chan *WsClient),
+		unregisterClient: make(chan *WsClient),
+		unregisterAnon:   make(chan *WsClient),
+		broadcast:        make(chan []byte),
+		shutdown:         make(chan bool),
+		upgrader:         upgrader,
 	}
-}
-
-// Hub maintains the set of active clients and broadcasts messages to the clients.
-type WsHub struct {
-	clients    map[*WsClient]bool // Registered clients.
-	broadcast  chan []byte        // Inbound messages from the clients.
-	register   chan *WsClient     // Register requests from the clients.
-	unregister chan *WsClient     // Unregister requests from clients.
-	upgrader   websocket.Upgrader
 }
 
 func (h *WsHub) Run() {
 	for {
 		select {
-		case client := <-h.register:
-			h.clients[client] = true
-
-		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
+		case client := <-h.registerClient:
+			// close current authenticated client if exists
+			if client, ok := h.clients[client.userId]; ok {
 				close(client.send)
-				log.Println("websocket connection closed")
 			}
 
-		case message := <-h.broadcast:
-			for client := range h.clients {
+			// add client to authenticated clients and remove from anon clients
+			h.clients[client.userId] = client
+			delete(h.anonClients, client)
+
+			log.Printf("user %v authenticated WebSocket connection\n", client.userId)
+
+		case client := <-h.registerAnon:
+			h.anonClients[client] = true
+			log.Println("anonymous websocket client connected")
+
+		case client := <-h.unregisterClient:
+			if client, ok := h.clients[client.userId]; ok {
+				delete(h.clients, client.userId)
+				close(client.send)
+				log.Printf("user %v websocket connection closed\n", client.userId)
+			}
+
+		case client := <-h.unregisterAnon:
+			if _, ok := h.anonClients[client]; ok {
+				delete(h.anonClients, client)
+				close(client.send)
+				log.Println("anonymous websocket connection closed")
+			}
+
+		case msg := <-h.broadcast:
+			for userId, client := range h.clients {
 				select {
-				case client.send <- message:
+				case client.send <- msg:
 
 				default:
 					close(client.send)
-					delete(h.clients, client)
+					delete(h.clients, userId)
 				}
 			}
+
+		case <-h.shutdown:
+			for userId, client := range h.clients {
+				delete(h.clients, userId)
+				close(client.send)
+			}
+
+			for client := range h.anonClients {
+				close(client.send)
+				delete(h.anonClients, client)
+			}
+
+			h.shutdown <- true // signifies shutdown complete
 		}
 	}
+}
+
+func (h *WsHub) AuthenticateClient(client *WsClient) bool {
+	return true
 }

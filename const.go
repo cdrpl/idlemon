@@ -84,6 +84,7 @@ const (
 	WS_MAX_MESSAGE_SIZE  = 512                        // Maximum message size allowed from peer.
 	WS_READ_BUFFER_SIZE  = 1024
 	WS_WRITE_BUFFER_SIZE = 1024
+	WS_AUTH_TIMEOUT      = time.Second * 30 // WebSocket client will be closed if it doesn't authenticated in time.
 )
 
 // Request context keys

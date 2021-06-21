@@ -90,7 +90,7 @@ func main() {
 	}
 	go RunHTTPServer(server)
 
-	ExitHandler(server, db, rdb)
+	ExitHandler(server, db, rdb, wsHub)
 }
 
 func parseFlags() (envFile string, dropTables bool) {
@@ -110,7 +110,7 @@ func RunHTTPServer(server *http.Server) {
 }
 
 // Graceful exit
-func ExitHandler(server *http.Server, db *pgxpool.Pool, rdb *redis.Client) {
+func ExitHandler(server *http.Server, db *pgxpool.Pool, rdb *redis.Client, ws *WsHub) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -125,6 +125,10 @@ func ExitHandler(server *http.Server, db *pgxpool.Pool, rdb *redis.Client) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("closing WebSocket connections")
+	ws.shutdown <- true
+	<-ws.shutdown // wait for shutdown complete
 
 	log.Println("closing database connections")
 	db.Close()
