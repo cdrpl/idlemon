@@ -74,13 +74,13 @@ func (rt RequireTokenMiddleware) Middleware(next httprouter.Handle) httprouter.H
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		id, token := ParseAuthHeader(r.Header.Get("Authorization"))
 
-		authorized, err := ValidateApiToken(r.Context(), id, token, rt.rdb)
+		authenticated, err := ValidateApiToken(r.Context(), id, token, rt.rdb)
 		if err != nil {
 			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		if authorized {
+		if authenticated {
 			userId, err := uuid.Parse(id)
 			if err != nil {
 				ErrResSanitize(w, http.StatusBadRequest, err.Error())
