@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v4"
@@ -17,7 +18,7 @@ import (
 
 // Model of the user table
 type User struct {
-	Id        int       `json:"id"`
+	Id        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Pass      string    `json:"-"`
@@ -30,6 +31,7 @@ func CreateUser(dc DataCache, name string, email string, pass string) User {
 	now := time.Now().UTC().Round(time.Second)
 
 	return User{
+		Id:        uuid.New(),
 		Name:      name,
 		Email:     email,
 		Pass:      pass,
@@ -38,33 +40,31 @@ func CreateUser(dc DataCache, name string, email string, pass string) User {
 }
 
 // Will hash the user's password then insert it into the database. Returns the user's ID.
-func InsertUser(ctx context.Context, tx pgx.Tx, dc DataCache, user User) (int, error) {
+func InsertUser(ctx context.Context, tx pgx.Tx, dc DataCache, user User) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), BCRYPT_COST)
 	if err != nil {
-		return 0, fmt.Errorf("fail to hash password: %w", err)
+		return fmt.Errorf("fail to hash password: %w", err)
 	}
 
-	var userId int
-
-	query := "INSERT INTO users (name, email, pass, created_at) VALUES ($1, $2, $3, $4) RETURNING id"
-	err = tx.QueryRow(ctx, query, user.Name, user.Email, hash, user.CreatedAt).Scan(&userId)
+	query := "INSERT INTO users (id, name, email, pass, created_at) VALUES ($1, $2, $3, $4, $5)"
+	_, err = tx.Exec(ctx, query, user.Id, user.Name, user.Email, hash, user.CreatedAt)
 	if err != nil {
-		return userId, fmt.Errorf("fail to insert user row: %w", err)
+		return fmt.Errorf("fail to insert user row: %w", err)
 	}
 
-	if err := InsertResources(ctx, tx, dc, userId); err != nil {
-		return userId, err
+	if err := InsertResources(ctx, tx, dc, user.Id); err != nil {
+		return err
 	}
 
-	if err := InsertDailyQuestProgress(ctx, tx, dc, userId); err != nil {
-		return userId, err
+	if err := InsertDailyQuestProgress(ctx, tx, dc, user.Id); err != nil {
+		return err
 	}
 
-	if err := InsertCampaign(ctx, tx, userId); err != nil {
-		return userId, err
+	if err := InsertCampaign(ctx, tx, user.Id); err != nil {
+		return err
 	}
 
-	return userId, nil
+	return nil
 }
 
 // Will insert the admin user if it doesn't exist.
@@ -72,14 +72,19 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 	pass := os.Getenv("ADMIN_PASS")
 	user := CreateUser(dc, ADMIN_NAME, ADMIN_EMAIL, pass)
 
+	userId, err := uuid.Parse(ADMIN_ID)
+	if err != nil {
+		return fmt.Errorf("fail to parse admin id: %w", err)
+	}
+	user.Id = userId
+
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("fail to begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	userId, err := InsertUser(ctx, tx, dc, user)
-	if err != nil {
+	if err := InsertUser(ctx, tx, dc, user); err != nil {
 		var pgErr *pgconn.PgError
 
 		// don't consider as error if admin user already exists
@@ -92,7 +97,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 
 	// give admin user some resources to make testing easier
 	for _, resource := range dc.Resources {
-		if err := IncResource(ctx, tx, userId, resource.Type, 100000); err != nil {
+		if err := IncResource(ctx, tx, user.Id, resource.Type, 100000); err != nil {
 			return fmt.Errorf("fail to increase user resources: %w", err)
 		}
 	}
@@ -106,7 +111,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 	return nil
 }
 
-func IncUserExp(ctx context.Context, tx pgx.Tx, userId int, amount int) error {
+func IncUserExp(ctx context.Context, tx pgx.Tx, userId uuid.UUID, amount int) error {
 	query := "UPDATE users SET exp = exp + $1 WHERE id = $2"
 
 	_, err := tx.Exec(ctx, query, amount, userId)

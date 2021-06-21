@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v4"
@@ -193,8 +194,8 @@ func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprou
 	resource.Amount -= UNIT_SUMMON_COST
 
 	unit := RandUnit(c.dc)
-	unit.Id, err = InsertUnit(r.Context(), tx, userId, unit)
-	if err != nil {
+
+	if err := InsertUnit(r.Context(), tx, userId, unit); err != nil {
 		log.Printf("fail to insert unit: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
@@ -228,9 +229,9 @@ func (c Controller) SummonUnit(w http.ResponseWriter, r *http.Request, p httprou
 func (c Controller) UnitToggleLock(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userId := GetUserId(r)
 
-	unitId, err := strconv.Atoi(p.ByName("id"))
+	unitId, err := uuid.Parse(p.ByName("id"))
 	if err != nil {
-		log.Printf("unit ID must be an integer: %v\n", err)
+		log.Printf("invalid unit ID: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -299,7 +300,7 @@ func (c Controller) SignUp(w http.ResponseWriter, r *http.Request, p httprouter.
 	}
 	defer tx.Rollback(r.Context())
 
-	_, err = InsertUser(r.Context(), tx, c.dc, CreateUser(c.dc, req.Name, req.Email, req.Pass))
+	err = InsertUser(r.Context(), tx, c.dc, CreateUser(c.dc, req.Name, req.Email, req.Pass))
 	if err != nil {
 		log.Printf("sign up error: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())

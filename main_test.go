@@ -12,6 +12,7 @@ import (
 
 	. "github.com/cdrpl/idlemon-server"
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
@@ -101,14 +102,15 @@ func InsertRandUser(ctx context.Context, db *pgxpool.Pool) (User, error) {
 		return User{}, err
 	}
 
+	user = CreateUser(dataCache, user.Name, user.Email, user.Pass)
+
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return User{}, fmt.Errorf("fail to being transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	id, err := InsertUser(context.TODO(), tx, dataCache, CreateUser(dataCache, user.Name, user.Email, user.Pass))
-	if err != nil {
+	if err := InsertUser(context.TODO(), tx, dataCache, user); err != nil {
 		return User{}, err
 	}
 
@@ -116,7 +118,6 @@ func InsertRandUser(ctx context.Context, db *pgxpool.Pool) (User, error) {
 		return User{}, fmt.Errorf("fail to commit transaction: %w", err)
 	}
 
-	user.Id = id
 	return user, nil
 }
 
@@ -135,7 +136,7 @@ func AuthenticatedUser(ctx context.Context, db *pgxpool.Pool, rdb *redis.Client)
 }
 
 // Create a random unit and insert it into the table.
-func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, userId int) (Unit, error) {
+func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) (Unit, error) {
 	template := RandUnitTemplateID(dataCache)
 
 	tx, err := db.Begin(ctx)
@@ -145,8 +146,8 @@ func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, userId int) (Unit, er
 	defer tx.Rollback(ctx)
 
 	unit := CreateUnit(template)
-	unit.Id, err = InsertUnit(ctx, tx, userId, unit)
-	if err != nil {
+
+	if err = InsertUnit(ctx, tx, userId, unit); err != nil {
 		return unit, fmt.Errorf("fail to insert unit: %w", err)
 	}
 
@@ -170,6 +171,6 @@ func AuthTest(t *testing.T, router *httprouter.Router, method string, url string
 	}
 }
 
-func SetAuthorization(req *http.Request, userID int, token string) {
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", userID, token))
+func SetAuthorization(req *http.Request, userID uuid.UUID, token string) {
+	req.Header.Add("Authorization", fmt.Sprintf("%v:%v", userID.String(), token))
 }

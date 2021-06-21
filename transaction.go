@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -14,7 +15,7 @@ type Transaction struct {
 }
 
 // Will apply the transaction to the correct table row.
-func (r Transaction) Apply(ctx context.Context, tx pgx.Tx, userId int) error {
+func (r Transaction) Apply(ctx context.Context, tx pgx.Tx, userId uuid.UUID) error {
 	switch r.Type {
 	case TRANSACTION_GEMS:
 		return IncResource(ctx, tx, userId, r.Type, r.Amount)

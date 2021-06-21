@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -28,7 +29,7 @@ func Resources() []Resource {
 }
 
 // Find all resources belonging to a user.
-func FindResources(ctx context.Context, db *pgxpool.Pool, userId int) ([]Resource, error) {
+func FindResources(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) ([]Resource, error) {
 	resources := make([]Resource, 0)
 
 	query := "SELECT id, type, amount FROM resources WHERE user_id = $1"
@@ -52,7 +53,7 @@ func FindResources(ctx context.Context, db *pgxpool.Pool, userId int) ([]Resourc
 }
 
 // Will find a resource for update.
-func FindResourceLock(ctx context.Context, tx pgx.Tx, userId int, resourceType int) (Resource, error) {
+func FindResourceLock(ctx context.Context, tx pgx.Tx, userId uuid.UUID, resourceType int) (Resource, error) {
 	resource := Resource{Type: resourceType}
 
 	query := "SELECT id, amount FROM resources WHERE (user_id = $1 AND type = $2) FOR UPDATE"
@@ -65,7 +66,7 @@ func FindResourceLock(ctx context.Context, tx pgx.Tx, userId int, resourceType i
 }
 
 // Will insert a resource row for every resource type.
-func InsertResources(ctx context.Context, tx pgx.Tx, dc DataCache, userId int) error {
+func InsertResources(ctx context.Context, tx pgx.Tx, dc DataCache, userId uuid.UUID) error {
 	for _, resource := range dc.Resources {
 		query := "INSERT INTO resources (user_id, type) VALUES ($1, $2)"
 
@@ -79,7 +80,7 @@ func InsertResources(ctx context.Context, tx pgx.Tx, dc DataCache, userId int) e
 }
 
 // Will increase a resource row in the database by the specific amount.
-func IncResource(ctx context.Context, tx pgx.Tx, userId int, resourceType int, amount int) error {
+func IncResource(ctx context.Context, tx pgx.Tx, userId uuid.UUID, resourceType int, amount int) error {
 	query := "UPDATE resources SET amount = amount + $1 WHERE (user_id = $2 AND type = $3)"
 	_, err := tx.Exec(ctx, query, amount, userId, resourceType)
 

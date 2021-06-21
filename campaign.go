@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type Campaign struct {
 	Id              int       `json:"id"`
-	UserId          int       `json:"-"`
+	UserId          uuid.UUID `json:"-"`
 	Level           int       `json:"level"`
 	LastCollectedAt time.Time `json:"lastCollectedAt"`
 }
@@ -78,7 +79,7 @@ func (c *Campaign) Collect(ctx context.Context, tx pgx.Tx) ([3]Transaction, erro
 	return transactions, nil
 }
 
-func FindCampaign(ctx context.Context, db *pgxpool.Pool, userId int) (Campaign, error) {
+func FindCampaign(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) (Campaign, error) {
 	var campaign Campaign
 
 	query := "SELECT id, level, last_collected_at FROM campaign WHERE user_id = $1"
@@ -90,7 +91,7 @@ func FindCampaign(ctx context.Context, db *pgxpool.Pool, userId int) (Campaign, 
 	return campaign, nil
 }
 
-func InsertCampaign(ctx context.Context, tx pgx.Tx, userId int) error {
+func InsertCampaign(ctx context.Context, tx pgx.Tx, userId uuid.UUID) error {
 	now := time.Now().UTC().Round(time.Second)
 
 	query := "INSERT INTO campaign (user_id, last_collected_at) VALUES ($1, $2)"

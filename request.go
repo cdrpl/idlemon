@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func ReadReqBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
@@ -16,9 +18,9 @@ func ReadReqBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	return bytes, nil
 }
 
-// Get the user ID from the request. Will call log.Fatal if error occurs during type cast.
-func GetUserId(r *http.Request) int {
-	id, ok := r.Context().Value(UserIdCtx).(int)
+// Get the user ID from the request. Will call log.
+func GetUserId(r *http.Request) uuid.UUID {
+	id, ok := r.Context().Value(UserIdCtx).(uuid.UUID)
 	if !ok {
 		log.Println("failed to fetch user ID from request context") // this should never fail if auth middleware is correctly used
 	}

@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
     name VARCHAR(16) NOT NULL,
     email VARCHAR(255) NOT NULL,
     pass VARCHAR(255) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS resources (
     id SERIAL PRIMARY KEY,
-    user_id integer NOT NULL,
+    user_id UUID NOT NULL,
     type integer NOT NULL,
     amount integer NOT NULL DEFAULT 0 CHECK (amount >= 0),
 
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS resources (
 
 CREATE TABLE IF NOT EXISTS campaign (
     id SERIAL PRIMARY KEY,
-    user_id integer NOT NULL,
+    user_id UUID NOT NULL,
     level integer NOT NULL DEFAULT 1 CHECK (level >= 1),
     last_collected_at TIMESTAMP NOT NULL,
 
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS campaign (
 
 CREATE TABLE IF NOT EXISTS daily_quest_progress (
     id SERIAL PRIMARY KEY,
-    user_id integer NOT NULL,
+    user_id UUID NOT NULL,
     daily_quest_id integer NOT NULL,
     count integer NOT NULL DEFAULT 0,
     last_completed_at TIMESTAMP NOT NULL,
@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS daily_quest_progress (
 );
 
 CREATE TABLE IF NOT EXISTS units (
-    id SERIAL PRIMARY KEY,
-    user_id integer NOT NULL,
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
     template integer NOT NULL,
     level integer NOT NULL DEFAULT 1 CHECK (level >= 1),
     stars integer NOT NULL DEFAULT 1 CHECK (stars >= 1 AND stars <= 10),

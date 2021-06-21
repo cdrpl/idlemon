@@ -126,7 +126,7 @@ func TestCampaignCollectRoute(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("PUT", "/campaign/collect", nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.Id, token))
+	SetAuthorization(req, user.Id, token)
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -165,11 +165,11 @@ func TestUnitLockRoute(t *testing.T) {
 
 	unit, err := InsertRandUnit(context.TODO(), db, user.Id)
 	if err != nil {
-		t.Fatalf("insert rand user error: %v", err)
+		t.Fatalf("insert rand unit error: %v", err)
 	}
 
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit.Id), nil)
-	req.Header.Add("Authorization", fmt.Sprintf("%d:%v", user.Id, token))
+	SetAuthorization(req, user.Id, token)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -305,8 +305,7 @@ func TestUserSignInRoute(t *testing.T) {
 	}
 
 	// api token should exist
-	idS := fmt.Sprintf("%d", signInRes.User.Id)
-	result, err := rdb.Get(context.TODO(), idS).Result()
+	result, err := rdb.Get(context.TODO(), user.Id.String()).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			t.Fatalf("api token was not present in redis")

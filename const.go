@@ -12,7 +12,9 @@ const (
 	API_TOKEN_TTL     = time.Hour * 12 // Time until the API token expires.
 	MAX_PG_CONN       = 10             // Maximum number of open Postgres connections.
 	UNIT_SUMMON_COST  = 250            // The cost to summon a unit.
-	BCRYPT_COST       = 11             // The bcrypt cost used to hash a user's password
+	BCRYPT_COST       = 11             // The bcrypt cost used to hash a user's password.
+	USER_ID_LEN       = 32
+	UNIT_ID_LEN       = 32
 )
 
 // Default env values.
@@ -72,7 +74,7 @@ const (
 
 // Admin user details.
 const (
-	ADMIN_ID    = 1
+	ADMIN_ID    = "00214d90-693a-46c3-b975-1a37b1b51e95"
 	ADMIN_NAME  = "Admin"
 	ADMIN_EMAIL = "admin@idlemon.com"
 )

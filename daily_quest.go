@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -35,7 +36,7 @@ func DailyQuests() []DailyQuest {
 
 type DailyQuestProgress struct {
 	Id              int       `json:"id"`
-	UserId          int       `json:"-"`
+	UserId          uuid.UUID `json:"-"`
 	DailyQuestId    int       `json:"dailyQuestId"`
 	Count           int       `json:"count"`
 	LastCompletedAt time.Time `json:"lastCompletedAt"`
@@ -86,7 +87,7 @@ func (dqp *DailyQuestProgress) Complete(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func FindAllDailyQuestProgress(ctx context.Context, db *pgxpool.Pool, userId int) ([]DailyQuestProgress, error) {
+func FindAllDailyQuestProgress(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) ([]DailyQuestProgress, error) {
 	dailyQuestProgress := make([]DailyQuestProgress, 0)
 
 	query := "SELECT id, daily_quest_id, count, last_completed_at FROM daily_quest_progress WHERE user_id = $1"
@@ -109,7 +110,7 @@ func FindAllDailyQuestProgress(ctx context.Context, db *pgxpool.Pool, userId int
 	return dailyQuestProgress, nil
 }
 
-func FindDailyQuestProgress(ctx context.Context, tx pgx.Tx, userId int, dailyQuestId int) (DailyQuestProgress, error) {
+func FindDailyQuestProgress(ctx context.Context, tx pgx.Tx, userId uuid.UUID, dailyQuestId int) (DailyQuestProgress, error) {
 	progress := DailyQuestProgress{UserId: userId, DailyQuestId: dailyQuestId}
 
 	query := "SELECT id, count, last_completed_at FROM daily_quest_progress WHERE (user_id = $1 AND daily_quest_id = $2)"
@@ -121,7 +122,7 @@ func FindDailyQuestProgress(ctx context.Context, tx pgx.Tx, userId int, dailyQue
 	return progress, nil
 }
 
-func InsertDailyQuestProgress(ctx context.Context, tx pgx.Tx, dc DataCache, userId int) error {
+func InsertDailyQuestProgress(ctx context.Context, tx pgx.Tx, dc DataCache, userId uuid.UUID) error {
 	for _, dailyQuest := range dc.DailyQuests {
 		progress := CreateDailyQuestProgress()
 

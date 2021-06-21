@@ -5,11 +5,11 @@ import (
 	"mime"
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -81,11 +81,11 @@ func (rt RequireTokenMiddleware) Middleware(next httprouter.Handle) httprouter.H
 		}
 
 		if authorized {
-			id, err := strconv.Atoi(id)
+			userId, err := uuid.Parse(id)
 			if err != nil {
-				ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+				ErrResSanitize(w, http.StatusBadRequest, err.Error())
 			} else {
-				ctx := context.WithValue(r.Context(), UserIdCtx, id)
+				ctx := context.WithValue(r.Context(), UserIdCtx, userId)
 				next(w, r.WithContext(ctx), p)
 			}
 		} else {
