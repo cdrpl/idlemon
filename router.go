@@ -52,7 +52,7 @@ func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, dc DataCache, wsHub *WsHu
 
 	// WebSocket route
 	router.GET("/ws", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		WsConnectHandler(wsHub, w, r)
+		WsConnectHandler(r.Context(), rdb, wsHub, w, r)
 	})
 
 	return router

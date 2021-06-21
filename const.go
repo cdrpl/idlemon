@@ -81,8 +81,8 @@ const (
 
 const (
 	WS_WRITE_TIMOUT      = 10 * time.Second           // Time allowed to write a message to the peer.
-	WS_PONG_TIMEOUT      = 60 * time.Second           // Time allowed to read the next pong message from the peer.
-	WS_PING_PERIOD       = (WS_PONG_TIMEOUT * 9) / 10 // Send pings to peer with this period. Must be less than pongWait.
+	WS_PONG_TIMEOUT      = 60 * time.Second           // Pong must be received before this timout or else the connection will be closed.
+	WS_PING_INTERVAL     = (WS_PONG_TIMEOUT * 9) / 10 // Send pings every interval. Must be less than pongWait.
 	WS_MAX_MESSAGE_SIZE  = 512                        // Maximum message size allowed from peer.
 	WS_READ_BUFFER_SIZE  = 1024
 	WS_WRITE_BUFFER_SIZE = 1024

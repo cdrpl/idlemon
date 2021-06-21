@@ -1,29 +1,27 @@
 package main
 
 import (
-	"bytes"
+	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type WsClient struct {
-	conn          *websocket.Conn
-	send          chan []byte // Buffered channel of outbound messages.
-	userId        int
-	authenticated bool
-	wsHub         *WsHub
+	conn   *websocket.Conn
+	send   chan WebSocketMessage // Buffered channel of outbound messages.
+	userId uuid.UUID
+	wsHub  *WsHub
 }
 
 func (c *WsClient) readPump() {
 	defer func() {
-		if c.authenticated {
-			c.wsHub.unregisterClient <- c
-		} else {
-			c.wsHub.unregisterAnon <- c
-		}
+		c.wsHub.unregisterClient <- c
 		c.conn.Close()
 	}()
 
@@ -32,22 +30,18 @@ func (c *WsClient) readPump() {
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(WS_PONG_TIMEOUT)); return nil })
 
 	for {
-		_, message, err := c.conn.ReadMessage()
+		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-
-		message = bytes.TrimSpace(bytes.Replace(message, []byte("\n"), []byte(" "), -1))
-
-		c.wsHub.broadcast <- message
 	}
 }
 
 func (c *WsClient) writePump() {
-	ticker := time.NewTicker(WS_PING_PERIOD)
+	ticker := time.NewTicker(WS_PING_INTERVAL)
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
@@ -57,31 +51,19 @@ func (c *WsClient) writePump() {
 		select {
 		case message, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(WS_WRITE_TIMOUT))
+
 			if !ok {
-				// The hub closed the channel.
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte("\n"))
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
+			if err := c.conn.WriteJSON(message); err != nil {
 				return
 			}
 
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(WS_WRITE_TIMOUT))
+
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -89,48 +71,54 @@ func (c *WsClient) writePump() {
 	}
 }
 
-func WsConnectHandler(wsHub *WsHub, w http.ResponseWriter, r *http.Request) {
-	conn, err := wsHub.upgrader.Upgrade(w, r, nil)
+func WsConnectHandler(ctx context.Context, rdb *redis.Client, wsHub *WsHub, w http.ResponseWriter, r *http.Request) {
+	id, token := ParseAuthHeader(r.Header.Get("Authorization"))
+
+	authenticated, err := ValidateApiToken(r.Context(), id, token, rdb)
 	if err != nil {
-		log.Println(err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	client := &WsClient{wsHub: wsHub, conn: conn, send: make(chan []byte, 256)}
-	wsHub.registerAnon <- client
+	if authenticated {
+		userId, err := uuid.Parse(id)
+		if err != nil {
+			log.Printf("fail to parse user ID: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 
-	go client.writePump()
-	go client.readPump()
+		conn, err := wsHub.upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("fail to upgrade WebSocket connection: %v\n", err)
+			ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 
-	// close anon connection if it doesn't authenticate in time
-	go func() {
-		time.Sleep(WS_AUTH_TIMEOUT)
-		wsHub.unregisterAnon <- client
-	}()
+		client := &WsClient{wsHub: wsHub, userId: userId, conn: conn, send: make(chan WebSocketMessage, 256)}
+		wsHub.registerClient <- client
+
+		go client.writePump()
+		go client.readPump()
+	}
 }
 
 // WsHub maintains the set of active clients and broadcasts messages to the clients.
 type WsHub struct {
-	clients          map[int]*WsClient
-	anonClients      map[*WsClient]bool
+	clients          map[uuid.UUID]*WsClient // Key is the user's ID.
 	registerClient   chan *WsClient
-	registerAnon     chan *WsClient
 	unregisterClient chan *WsClient
-	unregisterAnon   chan *WsClient
-	broadcast        chan []byte
+	broadcast        chan WebSocketMessage
 	shutdown         chan bool
 	upgrader         websocket.Upgrader
 }
 
 func CreateWsHub(upgrader websocket.Upgrader) *WsHub {
 	return &WsHub{
-		clients:          make(map[int]*WsClient),
-		anonClients:      make(map[*WsClient]bool),
+		clients:          make(map[uuid.UUID]*WsClient),
 		registerClient:   make(chan *WsClient),
-		registerAnon:     make(chan *WsClient),
 		unregisterClient: make(chan *WsClient),
-		unregisterAnon:   make(chan *WsClient),
-		broadcast:        make(chan []byte),
+		broadcast:        make(chan WebSocketMessage),
 		shutdown:         make(chan bool),
 		upgrader:         upgrader,
 	}
@@ -145,28 +133,14 @@ func (h *WsHub) Run() {
 				close(client.send)
 			}
 
-			// add client to authenticated clients and remove from anon clients
 			h.clients[client.userId] = client
-			delete(h.anonClients, client)
-
-			log.Printf("user %v authenticated WebSocket connection\n", client.userId)
-
-		case client := <-h.registerAnon:
-			h.anonClients[client] = true
-			log.Println("anonymous websocket client connected")
+			log.Printf("user %v WebSocket connected\n", client.userId)
 
 		case client := <-h.unregisterClient:
 			if client, ok := h.clients[client.userId]; ok {
 				delete(h.clients, client.userId)
 				close(client.send)
-				log.Printf("user %v websocket connection closed\n", client.userId)
-			}
-
-		case client := <-h.unregisterAnon:
-			if _, ok := h.anonClients[client]; ok {
-				delete(h.anonClients, client)
-				close(client.send)
-				log.Println("anonymous websocket connection closed")
+				log.Printf("user %v WebSocket closed\n", client.userId)
 			}
 
 		case msg := <-h.broadcast:
@@ -186,11 +160,6 @@ func (h *WsHub) Run() {
 				close(client.send)
 			}
 
-			for client := range h.anonClients {
-				close(client.send)
-				delete(h.anonClients, client)
-			}
-
 			h.shutdown <- true // signifies shutdown complete
 		}
 	}
@@ -198,4 +167,23 @@ func (h *WsHub) Run() {
 
 func (h *WsHub) AuthenticateClient(client *WsClient) bool {
 	return true
+}
+
+type WebSocketMessage interface {
+	ToJson() []byte
+}
+
+type WebSocketChatMessage struct {
+	Type       int    `json:"type"`
+	SenderName string `json:"senderName"`
+	Message    string `json:"message"`
+}
+
+func (msg WebSocketChatMessage) ToJson() []byte {
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("fail to marshall WebSocketChatMessage: %v\n", msg)
+	}
+
+	return bytes
 }
