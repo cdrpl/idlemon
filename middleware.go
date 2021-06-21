@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"mime"
 	"net/http"
 	"reflect"
@@ -42,7 +43,7 @@ func (bpm BodyParserMiddleware) Middleware(dtotype reflect.Type, next httprouter
 		}
 
 		dto := reflect.New(dtotype).Interface().(RequestDTO)
-		err = dto.Deserialize(bytes)
+		err = json.Unmarshal(bytes, dto)
 		if err != nil {
 			ErrResSanitize(w, http.StatusBadRequest, err.Error())
 			return
