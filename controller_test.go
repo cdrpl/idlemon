@@ -153,6 +153,99 @@ func TestCampaignCollectRoute(t *testing.T) {
 	}
 }
 
+/* Daily Quest Routes */
+
+func TestCompleteDailyQuest(t *testing.T) {
+	url := fmt.Sprintf("/daily-quest/%v/complete", DAILY_QUEST_SIGN_IN)
+	AuthTest(t, router, "PUT", url)
+
+	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
+	if err != nil {
+		t.Fatalf("fail to create test user: %v", err)
+	}
+
+	// test requirements not met
+	req := httptest.NewRequest("PUT", url, nil)
+	SetAuthorization(req, user.Id, token)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	var response DailyQuestCompleteRes
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("fail to unmarshal response: %v", err)
+	}
+
+	// status should be 2 for requirements not met
+	if response.Status != 2 {
+		t.Fatalf("expect response status to be 1, receive: %v", response.Status)
+	}
+
+	// test successful collect
+	query := "UPDATE daily_quest_progress SET count = 1 WHERE (user_id = $1 AND daily_quest_id = $2)"
+	_, err = db.Exec(context.TODO(), query, user.Id, DAILY_QUEST_SIGN_IN)
+	if err != nil {
+		t.Fatalf("fail to update daily_quest_progress table: %v", err)
+	}
+
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("fail to unmarshal response: %v", err)
+	}
+
+	// status should be 0 for successful completion
+	if response.Status != 0 {
+		t.Fatalf("expect response status to equal 0, receive: %v", response.Status)
+	}
+
+	expect := dataCache.DailyQuests[DAILY_QUEST_SIGN_IN].Transaction.Type
+	if response.Transaction.Type != expect {
+		t.Fatalf("unexpected transaction type, expect: %v, receive: %v", expect, response.Transaction.Type)
+	}
+
+	expect = dataCache.DailyQuests[DAILY_QUEST_SIGN_IN].Transaction.Amount
+	if response.Transaction.Amount != expect {
+		t.Fatalf("unexpected transaction amount, expect: %v, receive: %v", expect, response.Transaction.Amount)
+	}
+
+	// database should be updated
+	var amount int
+	query = "SELECT amount FROM resources WHERE (user_id = $1 AND type = $2)"
+	err = db.QueryRow(context.TODO(), query, user.Id, RESOURCE_GEMS).Scan(&amount)
+	if err != nil {
+		t.Fatalf("fail to query resources row: %v", err)
+	}
+
+	if amount != response.Transaction.Amount {
+		t.Fatalf("unexpected amount in database, expect: %v, receive: %v", response.Transaction.Amount, amount)
+	}
+
+	// test already collected
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("fail to unmarshal response: %v", err)
+	}
+
+	// status should be 10 for already collected
+	if response.Status != 1 {
+		t.Fatalf("expect response status to equal 1, receive: %v", response.Status)
+	}
+}
+
 /* Unit Routes */
 
 func TestUnitLockRoute(t *testing.T) {
