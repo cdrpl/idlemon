@@ -1,6 +1,6 @@
 # Idlemon Server
 
-This is a game server for an online idle game. Most player actions are received through HTTP requests but WebSockets are used for realtime needs such as player chat. Player data is stored in a Postgres database and Redis is used as a temporary cache.
+This is a game server for an online idle game. Player actions are received through HTTP requests and WebSockets are used to send realtime data to players. PostgreSQL is used to persist player data and Redis is used to cache temporary data.
 
 ### Dependencies
 
@@ -25,7 +25,7 @@ A .env file can be used to set environment variables. When the server is startin
 -   `-h` - Will display the list of CLI flags.
 -   `-e [file]` - Use to specify the location of a .env file.
 -   `-e nil` - This will stop the server from attempting to load a .env file.
--   `-d` - this will cause all tables to be dropped then recreated during startup. A QoL feature for development and will be removed in later versions.
+-   `-d` - will run [database_down.sql](/database_down.sql) during startup. A QoL feature for development and will be removed in later versions.
 
 ### Docker
 
@@ -48,15 +48,15 @@ Many API routes can only be accessed by authenticated users. When a user success
 
 ### Database Tables
 
-The server will construct the tables during startup. Just make sure a database exists with the same name as the env var `DB_NAME`.
+The server will construct the tables during startup. Just make sure a database exists with the same name as the env var `DB_NAME`. This feature can be disabled by setting the env var `INIT_DATABASE` to false.
 
 ### NGINX
 
-NGINX can be used as a reverse proxy, access logger, and gzip compressor. An example [config](/nginx.conf) file is located in the root directory.
+NGINX can be used as a reverse proxy, access logger, rate limiter, and gzip compressor. An example [config](/nginx.conf) file is located in the root directory.
 
 ### Admin User Account
 
-The server will create an admin account when starting up. The password is set using the `ADMIN_PASS` environment variable. This is a special account used by the server. Since units cannot exist without an owner and the server needs units for the campaign system, this account is used as the owner for all server owned units.
+An admin account will be created during startup if the env var `INIT_DATABASE` is set to true. The email is set using the `ADMIN_EMAIL` constant in [const.go](/const.go) and the password is set using the `ADMIN_PASS` environment variable.
 
 ## Development
 
@@ -72,3 +72,7 @@ The server will create an admin account when starting up. The password is set us
 ### WebSocket Server
 
 Use the route `ws://localhost:3000/ws` when opening up a WebSocket connection with the server.
+
+### Chat Messages
+
+A player can initiate sending a chat message by making an HTTP request to an API endpoint. The server will store the chat message in the database then send the chat message to all connected WebSocket clients.
