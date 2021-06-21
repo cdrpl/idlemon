@@ -9,7 +9,7 @@ type RequestDTO interface {
 }
 
 type SignUpReq struct {
-	Name  string `json:"name" validate:"required,min=2,max=16"`
+	Name  string `json:"name" validate:"required,alphanum,min=2,max=16"`
 	Email string `json:"email" validate:"required,email,max=255"`
 	Pass  string `json:"pass" validate:"required,min=8,max=255"`
 }
@@ -32,7 +32,7 @@ func (s *SignInReq) Sanitize() {
 }
 
 type UserRenameReq struct {
-	Name string `json:"name" validate:"required,min=2,max=16"`
+	Name string `json:"name" validate:"required,alphanum,min=2,max=16"`
 }
 
 func (r *UserRenameReq) Sanitize() {

@@ -47,6 +47,9 @@ func ValidationErrMsg(field string, tag string, param string) string {
 	case "email":
 		return "email is invalid"
 
+	case "alphanum":
+		return fmt.Sprintf("%v contains invalid characters", field)
+
 	default:
 		return fmt.Sprintf("no error message for validation type %v", tag)
 	}
