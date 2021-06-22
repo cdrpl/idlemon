@@ -516,14 +516,27 @@ func TestUserRenameRoute(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
+	}
+
+	newName = "MyNewName"
+	renameReq = UserRenameReq{Name: newName}
+	js, _ = json.Marshal(renameReq)
+
+	req = httptest.NewRequest(method, url, bytes.NewBuffer(js))
+	req.Header.Set("Content-Type", "application/json")
+	SetAuthorization(req, user.Id, token)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
 	}
 
 	// name should be changed in database
-	userQuery := User{}
-	err = db.QueryRow(context.TODO(), "SELECT name FROM users WHERE id = $1", user.Id).Scan(&userQuery.Name)
+	var name string
+	err = db.QueryRow(context.TODO(), "SELECT name FROM users WHERE id = $1", user.Id).Scan(&name)
 	if err != nil {
-		t.Errorf("expected name in database to equal %v, received: %v", newName, userQuery.Name)
+		t.Errorf("expected name in database to equal %v, received: %v", newName, name)
 	}
 }

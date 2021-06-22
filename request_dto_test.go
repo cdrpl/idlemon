@@ -11,7 +11,7 @@ func TestSignUpReqTags(t *testing.T) {
 	req := SignUpReq{Name: "", Email: "", Pass: "password"}
 	field, _ := reflect.TypeOf(req).FieldByName("Name")
 
-	expected := `json:"name" validate:"required,min=2,max=16"`
+	expected := `json:"name" validate:"required,alphanum,min=2,max=16"`
 	if string(field.Tag) != expected {
 		t.Errorf("expected name tag: %v, received: %v", expected, field.Tag)
 	}
@@ -76,7 +76,7 @@ func TestUserRenameReqTags(t *testing.T) {
 	req := UserRenameReq{Name: ""}
 
 	field, _ := reflect.TypeOf(req).FieldByName("Name")
-	expected := `json:"name" validate:"required,min=2,max=16"`
+	expected := `json:"name" validate:"required,alphanum,min=2,max=16"`
 	if string(field.Tag) != expected {
 		t.Errorf("expected name tag: %v, received: %v", expected, field.Tag)
 	}
