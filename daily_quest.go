@@ -44,15 +44,16 @@ type DailyQuestProgress struct {
 
 func CreateDailyQuestProgress() DailyQuestProgress {
 	// set before the start of today so the user can complete the quest even if they just signed up
-	lastCompletedAt := time.Now().Add(-time.Hour * 48).UTC().Round(time.Second)
+	lastCompletedAt := time.Now().Add(-time.Hour * 48)
 
 	return DailyQuestProgress{LastCompletedAt: lastCompletedAt}
 }
 
 // Will check if the quest has already been completed today.
 func (dqp *DailyQuestProgress) IsCompleted() bool {
-	y, m, d := time.Now().UTC().Date()
-	startOfToday := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	now := time.Now()
+	y, m, d := now.Date()
+	startOfToday := time.Date(y, m, d, 0, 0, 0, 0, now.Location())
 
 	return dqp.LastCompletedAt.Unix() >= startOfToday.Unix()
 }
@@ -73,7 +74,7 @@ func (dqp *DailyQuestProgress) IncreaseCount(ctx context.Context, tx pgx.Tx) err
 
 // Call this method when completing the daily quest. It will update the state of the struct.
 func (dqp *DailyQuestProgress) Complete(ctx context.Context, tx pgx.Tx) error {
-	completedAt := time.Now().UTC().Round(time.Second)
+	completedAt := time.Now()
 
 	query := "UPDATE daily_quest_progress SET count = 0, last_completed_at = $1 WHERE id = $2"
 	_, err := tx.Exec(ctx, query, completedAt, dqp.Id)

@@ -115,7 +115,7 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userId := GetUserId(r)
 	request := GetReqDto(r).(*ChatMessageSendReq)
-	now := time.Now().UTC().Round(time.Second)
+	now := time.Now()
 
 	query := "INSERT INTO chat_messages (user_id, message, sent_at) VALUES ($1, $2, $3)"
 	_, err := c.db.Exec(r.Context(), query, userId, request.Message, now)

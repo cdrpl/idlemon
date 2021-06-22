@@ -54,7 +54,7 @@ func (c *Campaign) Collect(ctx context.Context, tx pgx.Tx) ([3]Transaction, erro
 	gold := timeDiffSec * (CAMPAIGN_GOLD_PER_SEC + (c.Level / 5 * CAMPAIGN_GOLD_GROWTH))
 	expStones := timeDiffSec * (CAMPAIGN_EXP_STONE_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_STONE_GROWTH))
 
-	c.LastCollectedAt = time.Now().UTC().Round(time.Second)
+	c.LastCollectedAt = time.Now()
 
 	if err := c.UpdateLastCollectedAt(ctx, tx); err != nil {
 		return transactions, fmt.Errorf("fail to update campaign last collected at: %w", err)
@@ -92,7 +92,7 @@ func FindCampaign(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) (Camp
 }
 
 func InsertCampaign(ctx context.Context, tx pgx.Tx, userId uuid.UUID) error {
-	now := time.Now().UTC().Round(time.Second)
+	now := time.Now()
 
 	query := "INSERT INTO campaign (user_id, last_collected_at) VALUES ($1, $2)"
 	_, err := tx.Exec(ctx, query, userId, now)

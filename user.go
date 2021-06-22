@@ -28,7 +28,7 @@ type User struct {
 
 // Create a user struct with CreatedAt set to now.
 func CreateUser(dc DataCache, name string, email string, pass string) User {
-	now := time.Now().UTC().Round(time.Second)
+	now := time.Now()
 
 	return User{
 		Id:        uuid.New(),
