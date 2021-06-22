@@ -1,12 +1,13 @@
 package main_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
@@ -15,162 +16,207 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/julienschmidt/httprouter"
 )
 
-var router *httprouter.Router
-var dataCache DataCache
-var db *pgxpool.Pool
-var rdb *redis.Client
+const (
+	PORT = "3100"
+	HOST = "http://localhost:" + PORT
+)
+
+var idlemonServer *IdlemonServer
 
 func TestMain(m *testing.M) {
 	os.Setenv("ENV", "test")
+	os.Setenv("PORT", PORT)
 	os.Setenv("DB_NAME", "test")
-	LoadEnv(ENV_FILE, VERSION)
+	os.Setenv("CREATE_TABLES", "true")
+	os.Setenv("DROP_TABLES", "true")
+	os.Setenv("INSERT_ADMIN", "false")
 
-	dataCache = DataCache{}
+	idlemonServer = CreateIdlemonServer()
+	go idlemonServer.Run()
 
-	if err := dataCache.Load(); err != nil {
-		log.Fatalf("fail to load data cache: %v\n", err)
-	}
-
-	var err error
-	db, err = CreateDBConn(context.TODO())
-	if err != nil {
-		log.Fatalf("fail to create DB connection: %v\n", err)
-		os.Exit(1)
-	}
-
-	err = DropTables(context.TODO(), db)
-	if err != nil {
-		log.Fatalf("fail to drop tables: %v\n", err)
-		os.Exit(1)
-	}
-
-	log.SetOutput(ioutil.Discard)
-
-	err = InitDatabase(context.TODO(), db, dataCache)
-	if err != nil {
-		log.SetOutput(os.Stdout)
-		log.Fatalf("fail to init database: %v\n", err)
-		os.Exit(1)
-	}
-
-	rdb = CreateRedisClient(context.TODO())
-
-	SeedRand()
-
-	upgrader := websocket.Upgrader{
-		ReadBufferSize:  WS_READ_BUFFER_SIZE,
-		WriteBufferSize: WS_WRITE_BUFFER_SIZE,
-	}
-	wsHub := CreateWsHub(upgrader)
-	go wsHub.Run()
-
-	router = CreateRouter(db, rdb, wsHub, dataCache)
-
+	//log.SetOutput(ioutil.Discard)
 	os.Exit(m.Run())
 }
 
 /* Test Helpers */
 
-func RandUser() (User, error) {
+func RandUser(t *testing.T, dataCache *DataCache) User {
 	name, err := GenerateToken(16)
 	if err != nil {
-		return User{}, err
+		t.Fatalf("fail to generate rand name: %v", err)
 	}
 
 	email, err := GenerateToken(16)
 	if err != nil {
-		return User{}, err
+		t.Fatalf("fail to generate rand email: %v", err)
 	}
 
 	pass, err := GenerateToken(16)
 	if err != nil {
-		return User{}, err
+		t.Fatalf("fail to generate rand pass: %v", err)
 	}
 
 	email = email + "@fakemockemailfake.com"
-	user := CreateUser(dataCache, name, email, pass)
-
-	return user, nil
+	return CreateUser(dataCache, name, email, pass)
 }
 
-func InsertRandUser(ctx context.Context, db *pgxpool.Pool) (User, error) {
-	user, err := RandUser()
-	if err != nil {
-		return User{}, err
-	}
-
+func InsertRandUser(t *testing.T, db *pgxpool.Pool, dataCache *DataCache) User {
+	user := RandUser(t, dataCache)
 	user = CreateUser(dataCache, user.Name, user.Email, user.Pass)
 
-	tx, err := db.Begin(ctx)
+	tx, err := db.Begin(context.Background())
 	if err != nil {
-		return User{}, fmt.Errorf("fail to being transaction: %w", err)
+		t.Fatalf("fail to begin transaction: %v", err)
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(context.Background())
 
-	if err := InsertUser(context.TODO(), tx, dataCache, user); err != nil {
-		return User{}, err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return User{}, fmt.Errorf("fail to commit transaction: %w", err)
+	if err := InsertUser(context.Background(), tx, dataCache, user); err != nil {
+		t.Fatalf("fail to insert used: %v", err)
 	}
 
-	return user, nil
+	if err := tx.Commit(context.Background()); err != nil {
+		t.Fatalf("fail to commit transaction: %v", err)
+	}
+
+	return user
 }
 
-func AuthenticatedUser(ctx context.Context, db *pgxpool.Pool, rdb *redis.Client) (string, User, error) {
-	user, err := InsertRandUser(ctx, db)
+func AuthenticatedUser(t *testing.T, db *pgxpool.Pool, rdb *redis.Client, dataCache *DataCache) (string, User) {
+	user := InsertRandUser(t, db, dataCache)
+
+	token, err := CreateApiToken(context.Background(), rdb, user.Id)
 	if err != nil {
-		return "", User{}, err
+		t.Fatalf("fail to create API token: %v", err)
 	}
 
-	token, err := CreateApiToken(context.TODO(), rdb, user.Id)
-	if err != nil {
-		return "", User{}, err
-	}
-
-	return token, user, err
+	return token, user
 }
 
 // Create a random unit and insert it into the table.
-func InsertRandUnit(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) (Unit, error) {
+func InsertRandUnit(t *testing.T, db *pgxpool.Pool, dataCache *DataCache, userId uuid.UUID) Unit {
 	template := RandUnitTemplateID(dataCache)
 
-	tx, err := db.Begin(ctx)
+	tx, err := db.Begin(context.Background())
 	if err != nil {
-		return Unit{}, fmt.Errorf("fail to being transaction: %w", err)
+		t.Fatalf("fail to begin transaction: %v", err)
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(context.Background())
 
 	unit := CreateUnit(template)
 
-	if err = InsertUnit(ctx, tx, userId, unit); err != nil {
-		return unit, fmt.Errorf("fail to insert unit: %w", err)
+	if err = InsertUnit(context.Background(), tx, userId, unit); err != nil {
+		t.Fatalf("fail to insert unit: %v", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return unit, fmt.Errorf("fail to commit transaction: %w", err)
+	if err := tx.Commit(context.Background()); err != nil {
+		t.Fatalf("fail to commit transaction: %v", err)
 	}
 
-	return unit, err
+	return unit
 }
 
-// Will send an HTTP request without an Authorization header then call t.Fatalf if 401 not received.
-func AuthTest(t *testing.T, router *httprouter.Router, method string, url string) {
-	rr := httptest.NewRecorder()
-	req := httptest.NewRequest(method, url, nil)
+func CreateWsConn(t *testing.T, userId uuid.UUID, token string) *websocket.Conn {
+	authorization := fmt.Sprintf("%v:%v", userId.String(), token)
+	host := fmt.Sprintf("127.0.0.1:%v", PORT)
 
-	router.ServeHTTP(rr, req)
+	headers := http.Header{}
+	headers.Add("authorization", authorization)
 
-	if status := rr.Code; status != http.StatusUnauthorized {
+	u := url.URL{Scheme: "ws", Host: host, Path: "/ws"}
+
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), headers)
+	if err != nil {
+		t.Fatalf("fail to connect to WebSocket server: %v", err)
+	}
+
+	return c
+}
+
+// Send GET request without an authorization header.
+func GetRequest(t *testing.T, url string) *http.Response {
+	response, err := http.Get(HOST + url)
+	if err != nil {
+		t.Fatalf("fail to send get request: %v", url)
+	}
+
+	return response
+}
+
+// Send POST request without an authorization header.
+func PostRequest(t *testing.T, url string, body RequestDTO) *http.Response {
+	bodyB, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("fail to marshall request body: %v", err)
+	}
+
+	response, err := http.Post(HOST+url, "application/json", bytes.NewReader(bodyB))
+	if err != nil {
+		t.Fatalf("fail to send get request: %v", url)
+	}
+
+	return response
+}
+
+// Send an HTTP request. First checks that auth middleware catches missing authorization header. Then sends the real request with the header included.
+func SendRequest(t *testing.T, method string, url string, userId uuid.UUID, token string, body RequestDTO) *http.Response {
+	bodyB := make([]byte, 0)
+
+	if body != nil {
+		var err error
+		if bodyB, err = json.Marshal(body); err != nil {
+			t.Fatalf("fail to marshall request body: %v", err)
+		}
+	}
+
+	httpClient := http.Client{}
+
+	// create HTTP request
+	req, err := http.NewRequest(method, HOST+url, bytes.NewReader(bodyB))
+	if err != nil {
+		t.Fatalf("fail to create new request: %v", err)
+	}
+
+	// test auth middleware by sending request without authorization header
+	authResponse, err := httpClient.Do(req)
+	if err != nil {
+		t.Fatalf("fail to send request: %v", err)
+	}
+
+	// 401 unauthorized should be returned
+	if authResponse.StatusCode != http.StatusUnauthorized {
+		body := ReadResponseBody(t, authResponse)
 		t.Errorf("unauthorized should be returned if no authorization header is given")
-		t.Fatalf("expect status 401, received: %v, body: %v", status, rr.Body.String())
+		t.Fatalf("expect status 401, received: %v, body: %v", authResponse.StatusCode, body)
 	}
+
+	// recreate request since body will have already been read
+	req, err = http.NewRequest(method, HOST+url, bytes.NewReader(bodyB))
+	if err != nil {
+		t.Fatalf("fail to create new request: %v", err)
+	}
+
+	// add headers required for request
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("%v:%v", userId.String(), token))
+
+	// send the real HTTP request
+	response, err := httpClient.Do(req)
+	if err != nil {
+		t.Fatalf("fail to send request: %v", err)
+	}
+
+	return response
 }
 
-func SetAuthorization(req *http.Request, userID uuid.UUID, token string) {
-	req.Header.Add("Authorization", fmt.Sprintf("%v:%v", userID.String(), token))
+// Will read the response body, close it, then return it in string format.
+func ReadResponseBody(t *testing.T, r *http.Response) string {
+	bodyB, err := io.ReadAll(r.Body)
+	if err != nil {
+		t.Fatalf("fail to read response body: %v", err)
+	}
+	defer r.Body.Close()
+
+	return string(bodyB)
 }

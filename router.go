@@ -4,19 +4,14 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
 )
 
-func CreateRouter(db *pgxpool.Pool, rdb *redis.Client, wsHub *WsHub, dc DataCache) *httprouter.Router {
+func CreateRouter(controller *Controller) *httprouter.Router {
 	router := httprouter.New()
 
-	// controllers
-	controller := CreateController(db, rdb, wsHub, dc)
-
 	// middleware
-	auth := CreateRequireTokenMiddleware(rdb).Middleware
+	auth := CreateRequireTokenMiddleware(controller.rdb).Middleware
 	body := CreateBodyParserMiddleware().Middleware
 
 	// shorthand reflect TypeOf

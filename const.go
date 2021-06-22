@@ -17,20 +17,6 @@ const (
 	UNIT_ID_LEN       = 32
 )
 
-// Default env values.
-const (
-	ENV            = "development"
-	PORT           = "3000"
-	CLIENT_VERSION = "1.0.0"
-	ADMIN_PASS     = "adminpass"
-	DB_USER        = "postgres"
-	DB_PASS        = "password"
-	DB_NAME        = "postgres"
-	DB_HOST        = "localhost"
-	REDIS_HOST     = "localhost"
-	RUN_MIGRATIONS = "true"
-)
-
 const (
 	CAMPAIGN_MAX_COLLECT       = time.Hour * 24 // Max time before campaign cannot collect anymore
 	CAMPAIGN_EXP_PER_SEC       = 5              // The amount of exp earned every second on campaign level 1

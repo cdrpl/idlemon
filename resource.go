@@ -66,7 +66,7 @@ func FindResourceLock(ctx context.Context, tx pgx.Tx, userId uuid.UUID, resource
 }
 
 // Will insert a resource row for every resource type.
-func InsertResources(ctx context.Context, tx pgx.Tx, dc DataCache, userId uuid.UUID) error {
+func InsertResources(ctx context.Context, tx pgx.Tx, dc *DataCache, userId uuid.UUID) error {
 	for _, resource := range dc.Resources {
 		query := "INSERT INTO resources (user_id, type) VALUES ($1, $2)"
 

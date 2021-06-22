@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -32,9 +31,21 @@ var downSql string
 var unitTemplatesJson string
 
 func main() {
+	CreateIdlemonServer().Run()
+}
+
+type IdlemonServer struct {
+	HttpServer *http.Server
+	Db         *pgxpool.Pool
+	Rdb        *redis.Client
+	WsHub      *WsHub
+	DataCache  *DataCache
+}
+
+func CreateIdlemonServer() *IdlemonServer {
 	log.Println("starting server")
 
-	envFile, dropTables := parseFlags()
+	envFile := ParseCliFlags()
 	LoadEnv(envFile, VERSION)
 
 	// startup context
@@ -47,7 +58,7 @@ func main() {
 		log.Fatalf("failed to create postgres pool: %v\n", err)
 	}
 
-	if dropTables {
+	if os.Getenv("DROP_TABLES") == "true" {
 		log.Println("dropping database tables")
 
 		if err := DropTables(ctx, db); err != nil {
@@ -56,17 +67,24 @@ func main() {
 	}
 
 	// init data cache
-	dc := DataCache{}
-	if err := dc.Load(); err != nil {
+	dataCache := &DataCache{}
+	if err := dataCache.Load(); err != nil {
 		log.Fatalf("failed to load the data cache: %v\n", err)
 	}
 
-	// init database
-	if os.Getenv("INIT_DATABASE") == "true" {
+	// create database tables
+	if os.Getenv("CREATE_TABLES") == "true" {
 		log.Println("initializing database")
 
-		if err := InitDatabase(ctx, db, dc); err != nil {
-			log.Fatalf("fail to init database: %v", err)
+		if err := CreateDatabaseTables(ctx, db); err != nil {
+			log.Fatalf("fail to create database tables: %v\n", err)
+		}
+	}
+
+	// insert admin user
+	if os.Getenv("INSERT_ADMIN") == "true" {
+		if err := InsertAdminUser(ctx, db, dataCache); err != nil {
+			log.Fatalf("fail to insert admin user: %v\n", err)
 		}
 	}
 
@@ -81,36 +99,43 @@ func main() {
 		WriteBufferSize: WS_WRITE_BUFFER_SIZE,
 	}
 	wsHub := CreateWsHub(upgrader)
-	go wsHub.Run()
+
+	controller := CreateController(db, rdb, wsHub, dataCache)
 
 	port := fmt.Sprintf(":%v", os.Getenv("PORT"))
-	server := &http.Server{
+	httpServer := &http.Server{
 		Addr:    port,
-		Handler: CreateRouter(db, rdb, wsHub, dc),
+		Handler: CreateRouter(controller),
 	}
-	go RunHTTPServer(server)
 
-	ExitHandler(server, db, rdb, wsHub)
+	return &IdlemonServer{
+		HttpServer: httpServer,
+		Db:         db,
+		Rdb:        rdb,
+		WsHub:      wsHub,
+		DataCache:  dataCache,
+	}
 }
 
-func parseFlags() (envFile string, dropTables bool) {
-	flag.StringVar(&envFile, "e", ENV_FILE, "path to the .env file. use -e nil to prevent .env file from being loaded")
-	flag.BoolVar(&dropTables, "d", false, "this will cause all tables to be dropped then recreated during startup")
-	flag.Parse()
-	return
+// Will run the Idlemon server.
+func (s IdlemonServer) Run() {
+	go s.RunHTTPServer()
+	go s.WsHub.Run()
+	s.ExitHandler()
 }
 
-func RunHTTPServer(server *http.Server) {
-	log.Printf("binding HTTP server to 0.0.0.0%v\n", server.Addr)
+// Will run the HTTP server. Is blocking.
+func (s IdlemonServer) RunHTTPServer() {
+	log.Printf("binding HTTP server to 0.0.0.0%v\n", s.HttpServer.Addr)
 
-	err := server.ListenAndServe()
+	err := s.HttpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalln(err)
 	}
 }
 
-// Graceful exit
-func ExitHandler(server *http.Server, db *pgxpool.Pool, rdb *redis.Client, ws *WsHub) {
+// Graceful exit of Idlemon server on SIGINT or SIGTERM.
+func (s IdlemonServer) ExitHandler() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -121,20 +146,20 @@ func ExitHandler(server *http.Server, db *pgxpool.Pool, rdb *redis.Client, ws *W
 	defer cancel()
 
 	log.Println("shutting down HTTP server")
-	err := server.Shutdown(ctx)
+	err := s.HttpServer.Shutdown(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Println("closing WebSocket connections")
-	ws.shutdown <- true
-	<-ws.shutdown // wait for shutdown complete
+	s.WsHub.shutdown <- true
+	<-s.WsHub.shutdown // wait for shutdown complete
 
 	log.Println("closing database connections")
-	db.Close()
+	s.Db.Close()
 
 	log.Println("closing Redis client")
-	rdb.Close()
+	s.Rdb.Close()
 
 	log.Println("shutdown complete")
 	os.Exit(0)

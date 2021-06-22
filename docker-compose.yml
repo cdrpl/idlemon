@@ -11,10 +11,11 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_HOST=postgres
       - REDIS_HOST=redis
-      - INIT_DATABASE=${INIT_DATABASE}
+      - CREATE_TABLES=${CREATE_TABLES}
       - ADMIN_NAME=${ADMIN_NAME}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASS=${ADMIN_PASS}
+      - INSERT_ADMIN=${INSERT_ADMIN}
     restart: always
     depends_on:
       - redis

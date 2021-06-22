@@ -17,27 +17,28 @@ func LoadEnv(path string, serverVersion string) {
 		}
 	}
 
-	SetEnvDefaults()
+	CheckEnvVars()
 }
 
-func SetEnvDefaults() {
-	SetEnvDefault("ENV", ENV)
-	SetEnvDefault("PORT", PORT)
-	SetEnvDefault("CLIENT_VERSION", CLIENT_VERSION)
-	SetEnvDefault("ADMIN_PASS", ADMIN_PASS)
-	SetEnvDefault("DB_USER", DB_USER)
-	SetEnvDefault("DB_PASS", DB_PASS)
-	SetEnvDefault("DB_NAME", DB_NAME)
-	SetEnvDefault("DB_HOST", DB_HOST)
-	SetEnvDefault("REDIS_HOST", REDIS_HOST)
-	SetEnvDefault("RUN_MIGRATIONS", RUN_MIGRATIONS)
+func CheckEnvVars() {
+	CheckEnvVar("ENV")
+	CheckEnvVar("PORT")
+	CheckEnvVar("CLIENT_VERSION")
+	CheckEnvVar("DB_USER")
+	CheckEnvVar("DB_PASS")
+	CheckEnvVar("DB_NAME")
+	CheckEnvVar("DB_HOST")
+	CheckEnvVar("REDIS_HOST")
+	CheckEnvVar("CREATE_TABLES")
+	CheckEnvVar("ADMIN_NAME")
+	CheckEnvVar("ADMIN_EMAIL")
+	CheckEnvVar("ADMIN_PASS")
+	CheckEnvVar("INSERT_ADMIN")
 }
 
-// set env var to default value if not set.
-func SetEnvDefault(key string, val string) {
+// Will log fatal if env var is not set.
+func CheckEnvVar(key string) {
 	if os.Getenv(key) == "" {
-		if err := os.Setenv(key, val); err != nil {
-			log.Fatalln(err)
-		}
+		log.Fatalf("environment variable %v must be set", key)
 	}
 }

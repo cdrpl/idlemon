@@ -28,7 +28,7 @@ func CreateUnit(templateID int) Unit {
 }
 
 // Will return a random 1 star unit at level 1.
-func RandUnit(dc DataCache) Unit {
+func RandUnit(dc *DataCache) Unit {
 	template := RandUnitTemplateID(dc)
 	return CreateUnit(template)
 }

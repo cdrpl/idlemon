@@ -26,7 +26,7 @@ func UnMarshallUnitTemplatesJson() ([]UnitTemplate, error) {
 }
 
 // Return a random unit template ID.
-func RandUnitTemplateID(dc DataCache) int {
+func RandUnitTemplateID(dc *DataCache) int {
 	count := len(dc.UnitTemplates)
 
 	return RandInt(0, count)

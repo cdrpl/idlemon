@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -22,39 +21,22 @@ import (
 /* App Routes */
 
 func TestHealthCheckRoute(t *testing.T) {
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v", status)
-	}
+	r := GetRequest(t, "/")
+	body := ReadResponseBody(t, r)
 
 	m := map[string]int{"status": 0}
-	bytes, _ := json.Marshal(m)
 
+	bytes, _ := json.Marshal(m)
 	expect := string(bytes) + "\n"
-	if rr.Body.String() != expect {
-		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
+
+	if body != expect {
+		t.Errorf("expect body: %v, received: %v", expect, body)
 	}
 }
 
 func TestVersionRoute(t *testing.T) {
-	req, err := http.NewRequest("GET", "/version", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v", status)
-	}
+	r := GetRequest(t, "/version")
+	body := ReadResponseBody(t, r)
 
 	m := map[string]string{
 		"server": VERSION,
@@ -63,23 +45,15 @@ func TestVersionRoute(t *testing.T) {
 	bytes, _ := json.Marshal(m)
 
 	expect := string(bytes) + "\n"
-	if rr.Body.String() != expect {
-		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
+
+	if body != expect {
+		t.Errorf("expect body: %v, received: %v", expect, body)
 	}
 }
 
 func TestRobotsRoute(t *testing.T) {
-	req, err := http.NewRequest("GET", "/robots.txt", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v", status)
-	}
+	r := GetRequest(t, "/robots.txt")
+	body := ReadResponseBody(t, r)
 
 	// open robots.txt to compare to the response body
 	bytes, err := os.ReadFile("robots.txt")
@@ -88,56 +62,40 @@ func TestRobotsRoute(t *testing.T) {
 	}
 
 	expect := string(bytes)
-	if rr.Body.String() != expect {
-		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
+
+	if body != expect {
+		t.Errorf("expect body: %v, received: %v", expect, body)
 	}
 }
 
 func TestNotFoundRoute(t *testing.T) {
-	req, err := http.NewRequest("GET", "/invalid-route", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusNotFound {
-		t.Errorf("expect status 404, received: %v", status)
-	}
+	r := GetRequest(t, "/invalid-route")
+	body := ReadResponseBody(t, r)
 
 	m := map[string]string{"message": "Not Found"}
 	bytes, _ := json.Marshal(m)
 
 	expect := string(bytes) + "\n"
-	if rr.Body.String() != expect {
-		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
+	if body != expect {
+		t.Errorf("expect body: %v, received: %v", expect, body)
 	}
 }
 
 /* Campaign Routes */
 
 func TestCampaignCollectRoute(t *testing.T) {
-	AuthTest(t, router, "PUT", "/campaign/collect")
+	method := "PUT"
+	url := "/campaign/collect"
 
-	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
-	if err != nil {
-		t.Fatalf("fail to create test user: %v", err)
-	}
+	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
 
-	req := httptest.NewRequest("PUT", "/campaign/collect", nil)
-	SetAuthorization(req, user.Id, token)
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
+	response := SendRequest(t, method, url, user.Id, token, nil)
+	body := ReadResponseBody(t, response)
 
 	var res CampaignCollectRes
-	err = json.Unmarshal(rr.Body.Bytes(), &res)
-	if err != nil {
-		t.Fatalf("fail to unmarshall response body: %v", err)
+
+	if err := json.Unmarshal([]byte(body), &res); err != nil {
+		t.Fatalf("fail to unmarshal response body: %v", err)
 	}
 
 	if res.Transactions[0].Amount != 0 {
@@ -156,159 +114,166 @@ func TestCampaignCollectRoute(t *testing.T) {
 /* Daily Quest Routes */
 
 func TestDailyQuestComplete(t *testing.T) {
+	method := "PUT"
 	url := fmt.Sprintf("/daily-quest/%v/complete", DAILY_QUEST_SIGN_IN)
-	AuthTest(t, router, "PUT", url)
 
-	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
-	if err != nil {
-		t.Fatalf("fail to create test user: %v", err)
+	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
+
+	// send response expect requirements not met
+	response := SendRequest(t, method, url, user.Id, token, nil)
+	body := ReadResponseBody(t, response)
+
+	// expect status 200
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	// test requirements not met
-	req := httptest.NewRequest("PUT", url, nil)
-	SetAuthorization(req, user.Id, token)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	var questCompleteRes DailyQuestCompleteRes
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	var response DailyQuestCompleteRes
-
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+	// unmarshal requirements not met response
+	if err := json.Unmarshal([]byte(body), &questCompleteRes); err != nil {
 		t.Fatalf("fail to unmarshal response: %v", err)
 	}
 
 	// status should be 2 for requirements not met
-	if response.Status != 2 {
+	if questCompleteRes.Status != 2 {
 		t.Fatalf("expect response status to be 1, receive: %v", response.Status)
 	}
 
-	// test successful collect
+	// set quest progress to 100% to test successful completion
 	query := "UPDATE daily_quest_progress SET count = 1 WHERE (user_id = $1 AND daily_quest_id = $2)"
-	_, err = db.Exec(context.TODO(), query, user.Id, DAILY_QUEST_SIGN_IN)
+	_, err := idlemonServer.Db.Exec(context.Background(), query, user.Id, DAILY_QUEST_SIGN_IN)
 	if err != nil {
 		t.Fatalf("fail to update daily_quest_progress table: %v", err)
 	}
 
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	// send response expect success
+	response = SendRequest(t, method, url, user.Id, token, nil)
+	body = ReadResponseBody(t, response)
+
+	// expect status OK
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+	// unmarshal success response
+	if err := json.Unmarshal([]byte(body), &questCompleteRes); err != nil {
 		t.Fatalf("fail to unmarshal response: %v", err)
 	}
 
 	// status should be 0 for successful completion
-	if response.Status != 0 {
-		t.Fatalf("expect response status to equal 0, receive: %v", response.Status)
+	if questCompleteRes.Status != 0 {
+		t.Fatalf("expect response status to equal 0, receive: %v", questCompleteRes.Status)
 	}
 
-	expect := dataCache.DailyQuests[DAILY_QUEST_SIGN_IN].Transaction.Type
-	if response.Transaction.Type != expect {
-		t.Fatalf("unexpected transaction type, expect: %v, receive: %v", expect, response.Transaction.Type)
+	expect := idlemonServer.DataCache.DailyQuests[DAILY_QUEST_SIGN_IN].Transaction.Type
+	if questCompleteRes.Transaction.Type != expect {
+		t.Fatalf("unexpected transaction type, expect: %v, receive: %v", expect, questCompleteRes.Transaction.Type)
 	}
 
-	expect = dataCache.DailyQuests[DAILY_QUEST_SIGN_IN].Transaction.Amount
-	if response.Transaction.Amount != expect {
-		t.Fatalf("unexpected transaction amount, expect: %v, receive: %v", expect, response.Transaction.Amount)
+	expect = idlemonServer.DataCache.DailyQuests[DAILY_QUEST_SIGN_IN].Transaction.Amount
+	if questCompleteRes.Transaction.Amount != expect {
+		t.Fatalf("unexpected transaction amount, expect: %v, receive: %v", expect, questCompleteRes.Transaction.Amount)
 	}
 
-	// database should be updated
+	// check resources in database
 	var amount int
+
+	// select amount of gems from database
 	query = "SELECT amount FROM resources WHERE (user_id = $1 AND type = $2)"
-	err = db.QueryRow(context.TODO(), query, user.Id, RESOURCE_GEMS).Scan(&amount)
+	err = idlemonServer.Db.QueryRow(context.Background(), query, user.Id, RESOURCE_GEMS).Scan(&amount)
 	if err != nil {
 		t.Fatalf("fail to query resources row: %v", err)
 	}
 
-	if amount != response.Transaction.Amount {
-		t.Fatalf("unexpected amount in database, expect: %v, receive: %v", response.Transaction.Amount, amount)
+	// expect gems in database to equal amount gained from completing the quest
+	if amount != questCompleteRes.Transaction.Amount {
+		t.Fatalf("unexpected amount in database, expect: %v, receive: %v", questCompleteRes.Transaction.Amount, amount)
 	}
 
 	// test already collected
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	response = SendRequest(t, method, url, user.Id, token, nil)
+	body = ReadResponseBody(t, response)
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+	// unmarshal already collected response
+	if err := json.Unmarshal([]byte(body), &questCompleteRes); err != nil {
 		t.Fatalf("fail to unmarshal response: %v", err)
 	}
 
 	// status should be 10 for already collected
-	if response.Status != 1 {
-		t.Fatalf("expect response status to equal 1, receive: %v", response.Status)
+	if questCompleteRes.Status != 1 {
+		t.Fatalf("expect response status to equal 1, receive: %v", questCompleteRes.Status)
 	}
 }
 
 /* Summon Routes */
 
 func TestSummonUnit(t *testing.T) {
+	method := "PUT"
 	url := "/summon/unit"
-	AuthTest(t, router, "PUT", url)
 
-	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
-	if err != nil {
-		t.Fatalf("fail to create test user: %v", err)
-	}
+	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
 
-	req := httptest.NewRequest("PUT", url, nil)
-	SetAuthorization(req, user.Id, token)
-
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	response := SendRequest(t, method, url, user.Id, token, nil)
+	body := ReadResponseBody(t, response)
 
 	// should receive 400 for not enough gems
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Fatalf("expect status 400, received: %v, body: %v", status, rr.Body.String())
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expect status 400, received: %v, body: %v", response.StatusCode, body)
 	}
 
 	// give user some gems
 	query := "UPDATE resources SET amount = $1 WHERE (user_id = $2 AND type = $3)"
-	_, err = db.Exec(context.TODO(), query, UNIT_SUMMON_COST, user.Id, RESOURCE_GEMS)
+	_, err := idlemonServer.Db.Exec(context.Background(), query, UNIT_SUMMON_COST, user.Id, RESOURCE_GEMS)
 	if err != nil {
 		t.Fatalf("fail to update resources table: %v", err)
 	}
 
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	// send request which should succeed
+	response = SendRequest(t, method, url, user.Id, token, nil)
+	body = ReadResponseBody(t, response)
 
 	// should receive 200
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	var response SummonUnitRes
+	// unmarshal success response
+	var summonUnitRes SummonUnitRes
 
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("fail to unmarshal response: %v", err)
+	if err := json.Unmarshal([]byte(body), &summonUnitRes); err != nil {
+		t.Fatalf("fail to unmarshal successful response: %v", err)
 	}
 
 	// unit should exist in database
 	var template int
+
+	// fetch template of the summoned unit from the database
 	query = "SELECT template FROM units WHERE (id = $1 AND user_id = $2)"
-	err = db.QueryRow(context.TODO(), query, response.Unit.Id, user.Id).Scan(&template)
+	err = idlemonServer.Db.QueryRow(context.Background(), query, summonUnitRes.Unit.Id, user.Id).Scan(&template)
 	if err != nil {
 		t.Errorf("fail to query units table: %v", err)
 	}
 
-	if template != response.Unit.Template {
-		t.Errorf("unit template in database did not match response, expect: %v, receive: %v", response.Unit.Template, template)
+	if template != summonUnitRes.Unit.Template {
+		t.Errorf("unit template in database did not match response, expect: %v, receive: %v", summonUnitRes.Unit.Template, template)
 	}
 
 	// resource table should be updated
 	var amount int
+
+	// query gems amount from the database
 	query = "SELECT amount FROM resources WHERE (user_id = $1 AND type = $2)"
-	_, err = db.Exec(context.TODO(), query, user.Id, RESOURCE_GEMS)
+	_, err = idlemonServer.Db.Exec(context.Background(), query, user.Id, RESOURCE_GEMS)
 	if err != nil {
 		t.Fatalf("fail to query resources table: %v", err)
 	}
 
+	// amount of gems remaining should be 0
 	if amount != 0 {
 		t.Fatalf("expect amount in database to equal 0, receive: %v", amount)
 	}
@@ -317,32 +282,25 @@ func TestSummonUnit(t *testing.T) {
 /* Unit Routes */
 
 func TestUnitLockRoute(t *testing.T) {
-	AuthTest(t, router, "PUT", "/unit/1/toggle-lock")
+	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
+	unit := InsertRandUnit(t, idlemonServer.Db, idlemonServer.DataCache, user.Id)
 
-	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
-	if err != nil {
-		t.Fatalf("fail to create test user: %v", err)
-	}
+	method := "PUT"
+	url := "/unit/" + unit.Id.String() + "/toggle-lock"
 
-	unit, err := InsertRandUnit(context.TODO(), db, user.Id)
-	if err != nil {
-		t.Fatalf("insert rand unit error: %v", err)
-	}
+	response := SendRequest(t, method, url, user.Id, token, nil)
+	body := ReadResponseBody(t, response)
 
-	req := httptest.NewRequest("PUT", fmt.Sprintf("/unit/%v/toggle-lock", unit.Id), nil)
-	SetAuthorization(req, user.Id, token)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
 	// unit must be locked in database
 	var isLocked bool
 
+	// query units table
 	query := "SELECT is_locked FROM units WHERE id = $1"
-	err = db.QueryRow(context.TODO(), query, unit.Id).Scan(&isLocked)
+	err := idlemonServer.Db.QueryRow(context.Background(), query, unit.Id).Scan(&isLocked)
 	if err != nil {
 		t.Fatalf("fail to query units table: %v", err)
 	}
@@ -355,30 +313,21 @@ func TestUnitLockRoute(t *testing.T) {
 /* User Routes */
 
 func TestUserSignUpRoute(t *testing.T) {
-	userInsert := SignUpReq{Name: "name", Email: "name@name.com", Pass: "password"}
-	js, _ := json.Marshal(userInsert)
+	url := "/user/sign-up"
 
-	req := httptest.NewRequest("POST", "/user/sign-up", bytes.NewBuffer(js))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
+	signUpReq := &SignUpReq{Name: "name", Email: "name@name.com", Pass: "password"}
+	response := PostRequest(t, url, signUpReq)
+	body := ReadResponseBody(t, response)
 
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v", status)
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	m := map[string]int{"status": 0}
-	js, _ = json.Marshal(m)
-
-	expect := string(js) + "\n"
-	if rr.Body.String() != expect {
-		t.Errorf("expected body: %v, received: %v", expect, rr.Body.String())
-	}
-
-	// user should exist
 	user := User{}
-	query := "SELECT id, name, email, pass, created_at FROM users WHERE name = $1"
-	err := db.QueryRow(context.TODO(), query, userInsert.Name).Scan(&user.Id, &user.Name, &user.Email, &user.Pass, &user.CreatedAt)
+
+	// user should be inserted in the database
+	query := "SELECT id, name, email, pass, exp, created_at FROM users WHERE name = $1"
+	err := idlemonServer.Db.QueryRow(context.Background(), query, signUpReq.Name).Scan(&user.Id, &user.Name, &user.Email, &user.Pass, &user.Exp, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			t.Fatal("user was not present in the database")
@@ -388,85 +337,85 @@ func TestUserSignUpRoute(t *testing.T) {
 	}
 
 	// name should match
-	if userInsert.Name != user.Name {
-		t.Errorf("name not valid, expect: %v, receive: %v", userInsert.Name, user.Name)
+	if signUpReq.Name != user.Name {
+		t.Fatalf("name not valid, expect: %v, receive: %v", signUpReq.Name, user.Name)
 	}
 
 	// email should match
-	if userInsert.Email != user.Email {
-		t.Errorf("email not valid, expect: %v, receive: %v", userInsert.Email, user.Email)
+	if signUpReq.Email != user.Email {
+		t.Fatalf("email not valid, expect: %v, receive: %v", signUpReq.Email, user.Email)
 	}
 
 	// pass should be hashed
-	err = bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(userInsert.Pass))
-	if err != nil {
-		t.Error("password was not correctly hashed")
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(signUpReq.Pass)); err != nil {
+		t.Fatal("password was not correctly hashed")
+	}
+
+	// exp should be 0
+	if user.Exp != 0 {
+		t.Fatalf("exp in database was not 0, actual: %v", user.Exp)
 	}
 
 	// created at should be accurate
 	if time.Since(user.CreatedAt) > time.Second {
-		t.Errorf("more than a second has passed since user created at: %v", user.CreatedAt)
+		t.Fatalf("time since user created_at is greater than a second: %v", time.Since(user.CreatedAt))
 	}
 
 	// should return 400 with invalid json
-	req = httptest.NewRequest("POST", "/user/sign-up", bytes.NewBuffer([]byte("invalid {json {{ 'f}")))
-	req.Header.Set("Content-Type", "application/json")
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	response, err = http.Post(HOST+url, "application/json", bytes.NewReader([]byte("invalid {json {{ 'f}")))
+	if err != nil {
+		t.Fatalf("fail to send post request: %v", err)
+	}
 
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expect status 400, received: %v, %v", status, rr.Body.String())
+	body = ReadResponseBody(t, response)
+
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expect status 400, received: %v, body: %v", response.StatusCode, body)
 	}
 }
 
 func TestUserSignInRoute(t *testing.T) {
-	user, err := InsertRandUser(context.TODO(), db)
-	if err != nil {
-		t.Fatalf("fail to create test user: %v", err)
+	url := "/user/sign-in"
+
+	user := InsertRandUser(t, idlemonServer.Db, idlemonServer.DataCache)
+
+	signInReq := &SignInReq{Email: user.Email, Pass: user.Pass}
+	response := PostRequest(t, url, signInReq)
+	body := ReadResponseBody(t, response)
+
+	// expect status OK
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	signInReq := SignInReq{Email: user.Email, Pass: user.Pass}
-	js, _ := json.Marshal(signInReq)
-
-	req := httptest.NewRequest("POST", "/user/sign-in", bytes.NewBuffer(js))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	// sign in response should be valid
+	// unmarshal sign in response
 	var signInRes SignInRes
-
-	err = json.Unmarshal(rr.Body.Bytes(), &signInRes)
-	if err != nil {
-		t.Errorf("fail to unmarshal sign in response: %v", err)
+	if err := json.Unmarshal([]byte(body), &signInRes); err != nil {
+		t.Fatalf("fail to unmarshal sign in response: %v", err)
 	}
 
 	// token should not be empty
 	if signInRes.Token == "" {
-		t.Error("token was empty")
+		t.Fatal("token was empty")
 	}
 
 	// id should be valid
 	if signInRes.User.Id != user.Id {
-		t.Errorf("invalid id in response, expected: %v, received: %v", user.Id, signInRes.User.Id)
+		t.Fatalf("invalid id in response, expected: %v, received: %v", user.Id, signInRes.User.Id)
 	}
 
 	// email should be valid
 	if signInRes.User.Email != user.Email {
-		t.Errorf("invalid email in response, expected: %v, received: %v", user.Email, signInRes.User.Email)
+		t.Fatalf("invalid email in response, expected: %v, received: %v", user.Email, signInRes.User.Email)
 	}
 
 	// sign in response should have no password
 	if signInRes.User.Pass != "" {
-		t.Errorf("response should have no password, received: %v", signInRes.User.Pass)
+		t.Fatalf("response should have no password, received: %v", signInRes.User.Pass)
 	}
 
 	// api token should exist
-	result, err := rdb.Get(context.TODO(), user.Id.String()).Result()
+	tokenResult, err := idlemonServer.Rdb.Get(context.Background(), user.Id.String()).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			t.Fatalf("api token was not present in redis")
@@ -475,23 +424,8 @@ func TestUserSignInRoute(t *testing.T) {
 		}
 	}
 
-	if result != signInRes.Token {
-		t.Fatalf("api token does not match, expected: %v, receive: %v", signInRes.Token, result)
-	}
-
-	// validate response json keys
-	var m map[string]interface{}
-	err = json.Unmarshal(rr.Body.Bytes(), &m)
-	if err != nil {
-		t.Errorf("fail to unmarshal sign in response into map: %v", err)
-	}
-
-	if _, ok := m["token"]; !ok {
-		t.Error("sign in response didn't have a token property")
-	}
-
-	if _, ok := m["user"]; !ok {
-		t.Error("sign in response didn't have a user property")
+	if tokenResult != signInRes.Token {
+		t.Fatalf("api token does not match, expected: %v, receive: %v", signInRes.Token, tokenResult)
 	}
 }
 
@@ -499,44 +433,38 @@ func TestUserRenameRoute(t *testing.T) {
 	method := "PUT"
 	url := "/user/rename"
 
-	AuthTest(t, router, method, url)
+	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
 
-	token, user, err := AuthenticatedUser(context.TODO(), db, rdb)
-	if err != nil {
-		t.Fatalf("fail to create test user: %v", err)
+	// test request with invalid name
+	renameReq := &UserRenameReq{Name: "new name dog"}
+	response := SendRequest(t, method, url, user.Id, token, renameReq)
+	body := ReadResponseBody(t, response)
+
+	// expect bad request response
+	if response.StatusCode != http.StatusBadRequest {
+		t.Errorf("expect status 400, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	newName := "new name dog"
-	renameReq := UserRenameReq{Name: newName}
-	js, _ := json.Marshal(renameReq)
+	// test request with valid name
+	renameReq.Name = "ValidName"
+	response = SendRequest(t, method, url, user.Id, token, renameReq)
+	body = ReadResponseBody(t, response)
 
-	req := httptest.NewRequest(method, url, bytes.NewBuffer(js))
-	req.Header.Set("Content-Type", "application/json")
-	SetAuthorization(req, user.Id, token)
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expect status 400, received: %v, body: %v", status, rr.Body.String())
+	// expect status OK
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("expect status 200, received: %v, body: %v", response.StatusCode, body)
 	}
 
-	newName = "MyNewName"
-	renameReq = UserRenameReq{Name: newName}
-	js, _ = json.Marshal(renameReq)
-
-	req = httptest.NewRequest(method, url, bytes.NewBuffer(js))
-	req.Header.Set("Content-Type", "application/json")
-	SetAuthorization(req, user.Id, token)
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expect status 200, received: %v, body: %v", status, rr.Body.String())
-	}
-
-	// name should be changed in database
 	var name string
-	err = db.QueryRow(context.TODO(), "SELECT name FROM users WHERE id = $1", user.Id).Scan(&name)
+
+	// fetch user name from database
+	err := idlemonServer.Db.QueryRow(context.Background(), "SELECT name FROM users WHERE id = $1", user.Id).Scan(&name)
 	if err != nil {
-		t.Errorf("expected name in database to equal %v, received: %v", newName, name)
+		t.Fatalf("fail to query users table: %v", err)
+	}
+
+	// fetched name must be the same as the request name
+	if name != renameReq.Name {
+		t.Fatalf("invalid name in database, expect: %v, receive: %v", renameReq.Name, name)
 	}
 }

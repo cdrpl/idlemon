@@ -123,7 +123,7 @@ func FindDailyQuestProgress(ctx context.Context, tx pgx.Tx, userId uuid.UUID, da
 	return progress, nil
 }
 
-func InsertDailyQuestProgress(ctx context.Context, tx pgx.Tx, dc DataCache, userId uuid.UUID) error {
+func InsertDailyQuestProgress(ctx context.Context, tx pgx.Tx, dc *DataCache, userId uuid.UUID) error {
 	for _, dailyQuest := range dc.DailyQuests {
 		progress := CreateDailyQuestProgress()
 

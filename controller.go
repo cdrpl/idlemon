@@ -19,8 +19,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateController(db *pgxpool.Pool, rdb *redis.Client, wsHub *WsHub, dataCache DataCache) Controller {
-	return Controller{
+func CreateController(db *pgxpool.Pool, rdb *redis.Client, wsHub *WsHub, dataCache *DataCache) *Controller {
+	return &Controller{
 		db:        db,
 		rdb:       rdb,
 		wsHub:     wsHub,
@@ -32,7 +32,7 @@ type Controller struct {
 	db        *pgxpool.Pool
 	rdb       *redis.Client
 	wsHub     *WsHub
-	dataCache DataCache
+	dataCache *DataCache
 }
 
 /* App Routes */

@@ -27,7 +27,7 @@ type User struct {
 }
 
 // Create a user struct with CreatedAt set to now.
-func CreateUser(dc DataCache, name string, email string, pass string) User {
+func CreateUser(dc *DataCache, name string, email string, pass string) User {
 	now := time.Now()
 
 	return User{
@@ -40,7 +40,7 @@ func CreateUser(dc DataCache, name string, email string, pass string) User {
 }
 
 // Will hash the user's password then insert it into the database. Returns the user's ID.
-func InsertUser(ctx context.Context, tx pgx.Tx, dc DataCache, user User) error {
+func InsertUser(ctx context.Context, tx pgx.Tx, dc *DataCache, user User) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), BCRYPT_COST)
 	if err != nil {
 		return fmt.Errorf("fail to hash password: %w", err)
@@ -68,8 +68,8 @@ func InsertUser(ctx context.Context, tx pgx.Tx, dc DataCache, user User) error {
 }
 
 // Will insert the admin user if it doesn't exist.
-func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error {
-	user := CreateUser(dc, os.Getenv("ADMIN_NAME"), os.Getenv("ADMIN_EMAIL"), os.Getenv("ADMIN_PASS"))
+func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dataCache *DataCache) error {
+	user := CreateUser(dataCache, os.Getenv("ADMIN_NAME"), os.Getenv("ADMIN_EMAIL"), os.Getenv("ADMIN_PASS"))
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -77,7 +77,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 	}
 	defer tx.Rollback(ctx)
 
-	if err := InsertUser(ctx, tx, dc, user); err != nil {
+	if err := InsertUser(ctx, tx, dataCache, user); err != nil {
 		var pgErr *pgconn.PgError
 
 		// don't consider as error if admin user already exists
@@ -89,7 +89,7 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dc DataCache) error 
 	}
 
 	// give admin user some resources to make testing easier
-	for _, resource := range dc.Resources {
+	for _, resource := range dataCache.Resources {
 		if err := IncResource(ctx, tx, user.Id, resource.Type, 100000); err != nil {
 			return fmt.Errorf("fail to increase user resources: %w", err)
 		}

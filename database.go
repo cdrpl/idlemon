@@ -20,20 +20,6 @@ func CreateDBConn(ctx context.Context) (*pgxpool.Pool, error) {
 	return pgxpool.Connect(ctx, connString)
 }
 
-func InitDatabase(ctx context.Context, db *pgxpool.Pool, dc DataCache) error {
-	err := CreateDatabaseTables(ctx, db)
-	if err != nil {
-		return fmt.Errorf("fail to create database tables: %w", err)
-	}
-
-	err = InsertAdminUser(ctx, db, dc)
-	if err != nil {
-		return fmt.Errorf("fail to insert admin user: %w", err)
-	}
-
-	return nil
-}
-
 func CreateDatabaseTables(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, upSql)
 
