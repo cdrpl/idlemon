@@ -134,7 +134,7 @@ func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p ht
 		return
 	}
 
-	wsMsg := CreateWebSocketChatMessage(userName, request.Message)
+	wsMsg := CreateWebSocketChatMessage(userId, userName, request.Message)
 	c.wsHub.broadcast <- wsMsg
 
 	log.Printf("user %v sent chat message: %v\n", userId, request.Message)
