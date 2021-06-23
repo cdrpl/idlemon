@@ -111,6 +111,82 @@ func TestCampaignCollectRoute(t *testing.T) {
 	}
 }
 
+/* Chat Routs */
+
+func TestChatMessageSendRoute(t *testing.T) {
+	method := "POST"
+	url := "/chat/message/send"
+
+	// user used for sending chat message
+	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
+
+	// secondary user used for listening for chat message from the WebSocket server
+	token2, user2 := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
+
+	//create WebSocket connection, expect to receive message sent by user 1
+	wsConn := CreateWsConn(t, user2.Id, token2)
+
+	// channels for receiving data from WebSocket read
+	errChan := make(chan error)
+	wsMsg := make(chan WebSocketChatMessage)
+
+	// read message from wsConn
+	go func() {
+		var webSocketMessage WebSocketMessage
+		var wsChatMsg WebSocketChatMessage
+
+		if err := wsConn.SetReadDeadline(time.Now().Add(time.Second * 2)); err != nil {
+			errChan <- fmt.Errorf("fail to set WebSocket read deadline: %w", err)
+			return
+		}
+
+		if err := wsConn.ReadJSON(&webSocketMessage); err != nil {
+			errChan <- fmt.Errorf("fail to read WebSocket message: %w", err)
+			return
+		}
+
+		if err := json.Unmarshal(webSocketMessage.Data, &wsChatMsg); err != nil {
+			errChan <- fmt.Errorf("fail to unmarhsal WebSocketChatMessage: %w", err)
+			return
+		}
+
+		wsMsg <- wsChatMsg
+	}()
+
+	// chat message send request
+	request := &ChatMessageSendReq{Message: "Hello, World! :)"}
+	response := SendRequest(t, method, url, user.Id, token, request)
+	body := ReadResponseBody(t, response)
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expect status code 200, receive: %v, body: %v", response.StatusCode, body)
+	}
+
+	// message should exist in database
+	var message string
+
+	query := "SELECT message FROM chat_messages WHERE (user_id = $1 AND message = $2)"
+	err := idlemonServer.Db.QueryRow(context.Background(), query, user.Id, request.Message).Scan(&message)
+	if err != nil {
+		t.Fatalf("fail to fetch chat message from databse: %v", err)
+	}
+
+	// validate data received from WebSocket connection
+	select {
+	case err := <-errChan:
+		t.Fatal(err)
+
+	case wsMsg := <-wsMsg:
+		if wsMsg.SenderName != user.Name {
+			t.Fatalf("sender name on WebSocket message was invalid, expect: %v, receive: %v", user.Name, wsMsg.SenderName)
+		}
+
+		if wsMsg.Message != request.Message {
+			t.Fatalf("message from WebSocket was invalid, expect: %v, receive: %v", request.Message, wsMsg.Message)
+		}
+	}
+}
+
 /* Daily Quest Routes */
 
 func TestDailyQuestComplete(t *testing.T) {
