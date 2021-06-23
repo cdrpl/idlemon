@@ -32,7 +32,6 @@ func (c *Campaign) UpdateLastCollectedAt(ctx context.Context, tx pgx.Tx) error {
 // Will update the database to reflect collection of campaign resources. The transactions carried out are returned.
 func (c *Campaign) Collect(ctx context.Context, tx pgx.Tx) ([3]Transaction, error) {
 	timeDiff := time.Since(c.LastCollectedAt)
-	timeDiffSec := int(timeDiff.Seconds())
 
 	var transactions [3]Transaction
 	transactions[0] = Transaction{Type: TRANSACTION_USER_EXP}
@@ -50,6 +49,7 @@ func (c *Campaign) Collect(ctx context.Context, tx pgx.Tx) ([3]Transaction, erro
 	}
 
 	// calculate rewards
+	timeDiffSec := int(timeDiff.Seconds())
 	exp := timeDiffSec * (CAMPAIGN_EXP_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_GROWTH))
 	gold := timeDiffSec * (CAMPAIGN_GOLD_PER_SEC + (c.Level / 5 * CAMPAIGN_GOLD_GROWTH))
 	expStones := timeDiffSec * (CAMPAIGN_EXP_STONE_PER_SEC + (c.Level / 5 * CAMPAIGN_EXP_STONE_GROWTH))
