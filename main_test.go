@@ -36,7 +36,6 @@ func TestMain(m *testing.M) {
 	idlemonServer = CreateIdlemonServer()
 	go idlemonServer.Run()
 
-	//log.SetOutput(ioutil.Discard)
 	os.Exit(m.Run())
 }
 
