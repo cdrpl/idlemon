@@ -110,7 +110,7 @@ func (h *WsHub) Run() {
 
 		case msg := <-h.broadcast:
 			for userId, client := range h.clients {
-				if msg.Except != userId {
+				if userId != msg.Except {
 					select {
 					case client.send <- msg:
 
@@ -134,7 +134,7 @@ func (h *WsHub) Run() {
 
 type WebSocketMessage struct {
 	Type   int       `json:"type"`
-	Except uuid.UUID // message will not be broadcasted to client with user ID matching except
+	Except uuid.UUID `json:"-"` // message will not be broadcasted to client with user ID matching except
 	Data   []byte    `json:"data"`
 }
 
