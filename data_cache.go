@@ -1,6 +1,6 @@
 package main
 
-// Will unmarshall and keep a cache of some of the embeded json files.
+// Will unmarshal and keep a cache of some of the embeded json files.
 type DataCache struct {
 	DailyQuests   []DailyQuest
 	Resources     []Resource
@@ -12,7 +12,7 @@ func (dc *DataCache) Load() error {
 
 	dc.DailyQuests = DailyQuests()
 	dc.Resources = Resources()
-	dc.UnitTemplates, err = UnMarshallUnitTemplatesJson()
+	dc.UnitTemplates, err = UnMarshalUnitTemplatesJson()
 
 	return err
 }

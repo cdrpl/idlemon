@@ -14,7 +14,7 @@ type UnitTemplate struct {
 	Spd    int    `json:"spd"`
 }
 
-func UnMarshallUnitTemplatesJson() ([]UnitTemplate, error) {
+func UnMarshalUnitTemplatesJson() ([]UnitTemplate, error) {
 	var data map[string][]UnitTemplate
 
 	err := json.Unmarshal([]byte(unitTemplatesJson), &data)
