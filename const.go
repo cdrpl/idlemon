@@ -13,8 +13,7 @@ const (
 	MAX_PG_CONN       = 10             // Maximum number of open Postgres connections.
 	UNIT_SUMMON_COST  = 250            // The cost to summon a unit.
 	BCRYPT_COST       = 11             // The bcrypt cost used to hash a user's password.
-	USER_ID_LEN       = 32
-	UNIT_ID_LEN       = 32
+	CHAT_LOG_LEN      = 5              // The amount of chat messages returned when fetching chat history.
 )
 
 const (
@@ -70,7 +69,6 @@ const (
 	WS_MAX_MESSAGE_SIZE  = 512                        // Maximum message size allowed from peer.
 	WS_READ_BUFFER_SIZE  = 1024
 	WS_WRITE_BUFFER_SIZE = 1024
-	WS_AUTH_TIMEOUT      = time.Second * 30 // WebSocket client will be closed if it doesn't authenticated in time.
 )
 
 // Request context keys

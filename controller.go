@@ -112,6 +112,19 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 
 /* Chat Routes */
 
+func (c Controller) ChatMessageGet(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	request := GetReqDto(r).(*ChatMessageGetReq)
+
+	messages, err := GetChatMessages(r.Context(), c.db, request.Start, CHAT_LOG_LEN)
+	if err != nil {
+		log.Printf("fail to get chat messages: %v", err)
+		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	JsonRes(w, messages)
+}
+
 func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userId := GetUserId(r)
 	request := GetReqDto(r).(*ChatMessageSendReq)

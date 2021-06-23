@@ -29,7 +29,7 @@ func (c *Campaign) UpdateLastCollectedAt(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-// Will update the database to reflect collection of the campaign resources.
+// Will update the database to reflect collection of campaign resources. The transactions carried out are returned.
 func (c *Campaign) Collect(ctx context.Context, tx pgx.Tx) ([3]Transaction, error) {
 	timeDiff := time.Since(c.LastCollectedAt)
 	timeDiffSec := int(timeDiff.Seconds())
