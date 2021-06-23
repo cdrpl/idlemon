@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"mime"
 	"net/http"
 	"reflect"
@@ -42,13 +44,24 @@ func (bpm BodyParserMiddleware) Middleware(dtotype reflect.Type, next httprouter
 			return
 		}
 
+		// create instance of dtotype
 		dto := reflect.New(dtotype).Interface().(RequestDTO)
-		err = json.Unmarshal(bytes, dto)
-		if err != nil {
-			ErrResSanitize(w, http.StatusBadRequest, err.Error())
+
+		// unmarshall response body into dto instance
+		if err := json.Unmarshal(bytes, dto); err != nil {
+			var typeErr *json.UnmarshalTypeError
+
+			if errors.As(err, &typeErr) {
+				msg := fmt.Sprintf("%v must be of type %v", typeErr.Field, typeErr.Type)
+				ErrResCustom(w, http.StatusBadRequest, msg)
+			} else {
+				ErrResCustom(w, http.StatusBadRequest, "could not parse json - "+err.Error())
+			}
+
 			return
 		}
 
+		// validate/sanitize fields of dto
 		msg, hasError := RunStructValidator(bpm.validate, dto)
 		if hasError {
 			ErrResCustom(w, http.StatusBadRequest, msg)

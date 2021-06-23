@@ -9,7 +9,7 @@ type RequestDTO interface {
 }
 
 type ChatMessageGetReq struct {
-	Start int `json:"start"` // the ID of the chat message to start from
+	Start int `json:"start" validate:"min=0"` // the ID of the chat message to start from
 }
 
 func (r *ChatMessageGetReq) Sanitize() {}
