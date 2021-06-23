@@ -13,7 +13,7 @@ const (
 	MAX_PG_CONN       = 10             // Maximum number of open Postgres connections.
 	UNIT_SUMMON_COST  = 250            // The cost to summon a unit.
 	BCRYPT_COST       = 11             // The bcrypt cost used to hash a user's password.
-	CHAT_LOG_LEN      = 5              // The amount of chat messages returned when fetching chat history.
+	CHAT_LOG_LEN      = 15             // The amount of chat messages returned when fetching chat history.
 )
 
 const (
