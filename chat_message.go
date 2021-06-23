@@ -49,9 +49,12 @@ func GetChatMessages(ctx context.Context, db *pgxpool.Pool, start int, num int) 
 	return chatMessages, nil
 }
 
-func InsertChatMessage(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID, message string) error {
-	query := "INSERT INTO chat_messages (user_id, message, sent_at) VALUES ($1, $2, $3)"
-	_, err := db.Exec(ctx, query, userId, message, time.Now())
+// Insert chat message into the database and return the ID.
+func InsertChatMessage(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID, message string) (int, error) {
+	var id int
 
-	return err
+	query := "INSERT INTO chat_messages (user_id, message, sent_at) VALUES ($1, $2, $3) RETURNING id"
+	err := db.QueryRow(ctx, query, userId, message, time.Now()).Scan(&id)
+
+	return id, err
 }

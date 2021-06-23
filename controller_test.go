@@ -163,10 +163,10 @@ func TestChatMessageSendRoute(t *testing.T) {
 	}
 
 	// message should exist in database
-	var message string
+	var id int
 
-	query := "SELECT message FROM chat_messages WHERE (user_id = $1 AND message = $2)"
-	err := idlemonServer.Db.QueryRow(context.Background(), query, user.Id, request.Message).Scan(&message)
+	query := "SELECT id FROM chat_messages WHERE (user_id = $1 AND message = $2)"
+	err := idlemonServer.Db.QueryRow(context.Background(), query, user.Id, request.Message).Scan(&id)
 	if err != nil {
 		t.Fatalf("fail to fetch chat message from databse: %v", err)
 	}
@@ -177,6 +177,10 @@ func TestChatMessageSendRoute(t *testing.T) {
 		t.Fatal(err)
 
 	case wsMsg := <-wsMsg:
+		if id != wsMsg.Id {
+			t.Fatalf("id on WebSocket message was invalid, expect: %v, receive: %v", id, wsMsg.Id)
+		}
+
 		if wsMsg.SenderName != user.Name {
 			t.Fatalf("sender name on WebSocket message was invalid, expect: %v, receive: %v", user.Name, wsMsg.SenderName)
 		}

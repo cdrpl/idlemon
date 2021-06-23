@@ -110,14 +110,12 @@ func (h *WsHub) Run() {
 
 		case msg := <-h.broadcast:
 			for userId, client := range h.clients {
-				if userId != msg.Except {
-					select {
-					case client.send <- msg:
+				select {
+				case client.send <- msg:
 
-					default:
-						close(client.send)
-						delete(h.clients, userId)
-					}
+				default:
+					close(client.send)
+					delete(h.clients, userId)
 				}
 			}
 
@@ -133,19 +131,20 @@ func (h *WsHub) Run() {
 }
 
 type WebSocketMessage struct {
-	Type   int       `json:"type"`
-	Except uuid.UUID `json:"-"` // message will not be broadcasted to client with user ID matching except
-	Data   []byte    `json:"data"`
+	Type int    `json:"type"`
+	Data []byte `json:"data"`
 }
 
 type WebSocketChatMessage struct {
+	Id         int    `json:"id"`
 	SenderName string `json:"senderName"`
 	Message    string `json:"message"`
 }
 
 // Create a WebSocketMessage with a WebSocketChatMessage struct in the Data field.
-func CreateWebSocketChatMessage(senderId uuid.UUID, senderName string, message string) WebSocketMessage {
+func CreateWebSocketChatMessage(msgId int, senderId uuid.UUID, senderName string, message string) WebSocketMessage {
 	chatMsg := WebSocketChatMessage{
+		Id:         msgId,
 		SenderName: senderName,
 		Message:    message,
 	}
@@ -156,9 +155,8 @@ func CreateWebSocketChatMessage(senderId uuid.UUID, senderName string, message s
 	}
 
 	wsMsg := WebSocketMessage{
-		Type:   WS_CHAT_MESSAGE,
-		Except: senderId,
-		Data:   bytes,
+		Type: WS_CHAT_MESSAGE,
+		Data: bytes,
 	}
 
 	return wsMsg

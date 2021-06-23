@@ -128,7 +128,8 @@ func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p ht
 	userId := GetUserId(r)
 	request := GetReqDto(r).(*ChatMessageSendReq)
 
-	if err := InsertChatMessage(r.Context(), c.db, userId, request.Message); err != nil {
+	msgId, err := InsertChatMessage(r.Context(), c.db, userId, request.Message)
+	if err != nil {
 		log.Printf("fail to insert into chat_messages table: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
@@ -141,7 +142,7 @@ func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p ht
 		return
 	}
 
-	wsMsg := CreateWebSocketChatMessage(userId, userName, request.Message)
+	wsMsg := CreateWebSocketChatMessage(msgId, userId, userName, request.Message)
 	c.wsHub.broadcast <- wsMsg
 
 	log.Printf("user %v sent chat message: %v\n", userId, request.Message)
