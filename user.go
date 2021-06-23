@@ -142,3 +142,13 @@ func EmailExists(ctx context.Context, db *pgxpool.Pool, email string) (bool, err
 
 	return true, nil
 }
+
+// Return the user's name based on the given user ID.
+func FindUserName(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID) (string, error) {
+	var userName string
+
+	query := "SELECT name FROM users WHERE id = $1"
+	err := db.QueryRow(ctx, query, userId).Scan(&userName)
+
+	return userName, err
+}
