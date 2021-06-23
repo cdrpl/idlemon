@@ -47,7 +47,7 @@ Many API routes can only be accessed by authenticated users. When a user success
 
 ### Database Tables
 
-The server will construct the tables during startup. Just make sure a database exists with the same name as the env var `DB_NAME`. This feature can be disabled by setting the env var `INIT_DATABASE` to false.
+The server will construct the tables during startup. Just make sure a database exists with the same name as the env var `DB_NAME`. This feature can be disabled by setting the env var `CREATE_TABLES` to false.
 
 ### NGINX
 
@@ -55,7 +55,7 @@ NGINX can be used as a reverse proxy, access logger, rate limiter, and gzip comp
 
 ### Admin User Account
 
-An admin account will be created during startup if the env var `INIT_DATABASE` is set to true. The admin account details can be set through the env vars `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASS`.
+An admin account will be created during startup if the env var `CREATE_TABLES` is set to true. The admin account details can be set through the env vars `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASS`.
 
 ## Development
 
