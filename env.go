@@ -30,6 +30,7 @@ func CheckEnvVars() {
 	CheckEnvVar("DB_HOST")
 	CheckEnvVar("REDIS_HOST")
 	CheckEnvVar("CREATE_TABLES")
+	CheckEnvVar("DROP_TABLES")
 	CheckEnvVar("ADMIN_NAME")
 	CheckEnvVar("ADMIN_EMAIL")
 	CheckEnvVar("ADMIN_PASS")
