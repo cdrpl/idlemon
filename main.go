@@ -52,6 +52,12 @@ func CreateIdlemonServer() *IdlemonServer {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
+	// init data cache
+	dataCache := &DataCache{}
+	if err := dataCache.Load(); err != nil {
+		log.Fatalf("failed to load the data cache: %v\n", err)
+	}
+
 	log.Println("creating Postgres pool")
 	db, err := CreateDBConn(ctx)
 	if err != nil {
@@ -64,12 +70,6 @@ func CreateIdlemonServer() *IdlemonServer {
 		if err := DropTables(ctx, db); err != nil {
 			log.Fatalf("fail to drop tables: %v\n", err)
 		}
-	}
-
-	// init data cache
-	dataCache := &DataCache{}
-	if err := dataCache.Load(); err != nil {
-		log.Fatalf("failed to load the data cache: %v\n", err)
 	}
 
 	// create database tables
