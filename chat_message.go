@@ -11,7 +11,7 @@ import (
 
 type ChatMessage struct {
 	Id         int       `json:"id"`
-	SenderName string    `jso-n:"senderName"`
+	SenderName string    `json:"senderName"`
 	Message    string    `json:"message"`
 	SentAt     time.Time `json:"sentAt"`
 }
