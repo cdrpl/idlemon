@@ -2,6 +2,10 @@ package main
 
 import "time"
 
+type ChatMessageGetRes struct {
+	Messages []ChatMessage `json:"messages"`
+}
+
 type SignInRes struct {
 	Token              string               `json:"token"`
 	User               User                 `json:"user"`

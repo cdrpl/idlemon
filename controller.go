@@ -112,32 +112,49 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 /* Chat Routes */
 
 func (c Controller) ChatMessageGet(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	request := GetReqDto(r).(*ChatMessageGetReq)
+	queryParams := r.URL.Query()
+	userId := GetUserId(r)
+	start := 0
 
-	messages, err := GetChatMessages(r.Context(), c.db, request.Start, CHAT_LOG_LEN)
+	// if start parameter is present, convert it to string and set start
+	if startParam := queryParams.Get("start"); startParam != "" {
+		var err error
+
+		start, err = strconv.Atoi(startParam)
+		if err != nil {
+			ErrResCustom(w, http.StatusBadRequest, "start should be an integer")
+			return
+		}
+	}
+
+	messages, err := GetChatMessages(r.Context(), c.db, start, CHAT_LOG_LEN)
 	if err != nil {
 		log.Printf("fail to get chat messages: %v", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	JsonRes(w, messages)
+	log.Printf("user %v fetched chat history starting from message ID: %v", userId, start)
+
+	response := ChatMessageGetRes{Messages: messages}
+	JsonRes(w, response)
 }
 
 func (c Controller) ChatMessageSend(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	userId := GetUserId(r)
 	request := GetReqDto(r).(*ChatMessageSendReq)
 
-	msgId, err := InsertChatMessage(r.Context(), c.db, userId, request.Message)
+	// no need to lock, accuracy of username isn't important since names can be changed
+	userName, err := FindUserName(r.Context(), c.db, userId)
 	if err != nil {
-		log.Printf("fail to insert into chat_messages table: %v\n", err)
+		log.Printf("fail to fetch name from users table: %v", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	userName, err := FindUserName(r.Context(), c.db, userId)
+	msgId, err := InsertChatMessage(r.Context(), c.db, userId, userName, request.Message)
 	if err != nil {
-		log.Printf("fail to fetch name from users table: %v\n", err)
+		log.Printf("fail to insert into chat_messages table: %v\n", err)
 		ErrResSanitize(w, http.StatusInternalServerError, err.Error())
 		return
 	}

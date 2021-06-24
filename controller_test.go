@@ -128,12 +128,12 @@ func TestChatMessageSendRoute(t *testing.T) {
 
 	// channels for receiving data from WebSocket read
 	errChan := make(chan error)
-	wsMsg := make(chan WebSocketChatMessage)
+	wsMsg := make(chan ChatMessage)
 
 	// read message from wsConn
 	go func() {
 		var webSocketMessage WebSocketMessage
-		var wsChatMsg WebSocketChatMessage
+		var wsChatMsg ChatMessage
 
 		if err := wsConn.SetReadDeadline(time.Now().Add(time.Second * 2)); err != nil {
 			errChan <- fmt.Errorf("fail to set WebSocket read deadline: %w", err)
@@ -164,11 +164,17 @@ func TestChatMessageSendRoute(t *testing.T) {
 
 	// message should exist in database
 	var id int
+	var senderName string
 
-	query := "SELECT id FROM chat_messages WHERE (user_id = $1 AND message = $2)"
-	err := idlemonServer.Db.QueryRow(context.Background(), query, user.Id, request.Message).Scan(&id)
+	query := "SELECT id, sender_name FROM chat_messages WHERE (user_id = $1 AND message = $2)"
+	err := idlemonServer.Db.QueryRow(context.Background(), query, user.Id, request.Message).Scan(&id, &senderName)
 	if err != nil {
 		t.Fatalf("fail to fetch chat message from databse: %v", err)
+	}
+
+	// sender name in database must be the same as the user name
+	if senderName != user.Name {
+		t.Fatalf("sender_name in database is invalid, expect: %v, receive: %v", user.Name, senderName)
 	}
 
 	// validate data received from WebSocket connection

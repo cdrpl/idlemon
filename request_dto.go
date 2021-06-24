@@ -8,12 +8,6 @@ type RequestDTO interface {
 	Sanitize()
 }
 
-type ChatMessageGetReq struct {
-	Start int `json:"start" validate:"min=0"` // the ID of the chat message to start from
-}
-
-func (r *ChatMessageGetReq) Sanitize() {}
-
 type ChatMessageSendReq struct {
 	Message string `json:"message" validate:"required,min=1,max=255"`
 }

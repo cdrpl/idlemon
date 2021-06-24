@@ -10,9 +10,10 @@ import (
 )
 
 type ChatMessage struct {
-	Id         int    `json:"id"`
-	SenderName string `json:"senderName"`
-	Message    string `json:"message"`
+	Id         int       `json:"id"`
+	SenderName string    `jso-n:"senderName"`
+	Message    string    `json:"message"`
+	SentAt     time.Time `json:"sentAt"`
 }
 
 // Returns n amount of chat messages sent before start. Start is the ID of the chat message to start from.
@@ -25,10 +26,9 @@ func GetChatMessages(ctx context.Context, db *pgxpool.Pool, start int, num int) 
 		start = math.MaxInt32
 	}
 
-	query := `SELECT chat_messages.id, chat_messages.message, users.name FROM chat_messages
-			  LEFT JOIN users ON chat_messages.user_id = users.id
-			  WHERE chat_messages.id < $1
-			  ORDER BY chat_messages.id DESC
+	query := `SELECT id, sender_name, message, sent_at FROM chat_messages
+			  WHERE id < $1
+			  ORDER BY id DESC
 			  LIMIT $2`
 
 	rows, err := db.Query(ctx, query, start, num)
@@ -39,7 +39,7 @@ func GetChatMessages(ctx context.Context, db *pgxpool.Pool, start int, num int) 
 	for rows.Next() {
 		var cm ChatMessage
 
-		if err := rows.Scan(&cm.Id, &cm.Message, &cm.SenderName); err != nil {
+		if err := rows.Scan(&cm.Id, &cm.SenderName, &cm.Message, &cm.SentAt); err != nil {
 			return chatMessages, err
 		}
 
@@ -50,11 +50,11 @@ func GetChatMessages(ctx context.Context, db *pgxpool.Pool, start int, num int) 
 }
 
 // Insert chat message into the database and return the ID.
-func InsertChatMessage(ctx context.Context, db *pgxpool.Pool, userId uuid.UUID, message string) (int, error) {
+func InsertChatMessage(ctx context.Context, db *pgxpool.Pool, senderId uuid.UUID, senderName string, message string) (int, error) {
 	var id int
 
-	query := "INSERT INTO chat_messages (user_id, message, sent_at) VALUES ($1, $2, $3) RETURNING id"
-	err := db.QueryRow(ctx, query, userId, message, time.Now()).Scan(&id)
+	query := "INSERT INTO chat_messages (user_id, sender_name, message, sent_at) VALUES ($1, $2, $3, $4) RETURNING id"
+	err := db.QueryRow(ctx, query, senderId, senderName, message, time.Now()).Scan(&id)
 
 	return id, err
 }

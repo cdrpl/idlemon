@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS units (
 CREATE TABLE IF NOT EXISTS chat_messages (
     id serial PRIMARY KEY,
     user_id uuid NOT NULL,
+    sender_name VARCHAR(16) NOT NULL,
     message VARCHAR(255) NOT NULL,
     sent_at timestamptz NOT NULL,
 

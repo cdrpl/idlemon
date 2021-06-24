@@ -135,15 +135,9 @@ type WebSocketMessage struct {
 	Data []byte `json:"data"`
 }
 
-type WebSocketChatMessage struct {
-	Id         int    `json:"id"`
-	SenderName string `json:"senderName"`
-	Message    string `json:"message"`
-}
-
 // Create a WebSocketMessage with a WebSocketChatMessage struct in the Data field.
 func CreateWebSocketChatMessage(msgId int, senderId uuid.UUID, senderName string, message string) WebSocketMessage {
-	chatMsg := WebSocketChatMessage{
+	chatMsg := ChatMessage{
 		Id:         msgId,
 		SenderName: senderName,
 		Message:    message,
