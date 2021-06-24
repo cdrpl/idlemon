@@ -183,8 +183,12 @@ func TestChatMessageSendRoute(t *testing.T) {
 		t.Fatal(err)
 
 	case wsMsg := <-wsMsg:
-		if id != wsMsg.Id {
+		if wsMsg.Id != id {
 			t.Fatalf("id on WebSocket message was invalid, expect: %v, receive: %v", id, wsMsg.Id)
+		}
+
+		if wsMsg.UserId != user.Id {
+			t.Fatalf("user ID on WebSocket message was invalid, expect: %v, receive: %v", user.Id, wsMsg.UserId)
 		}
 
 		if wsMsg.SenderName != user.Name {

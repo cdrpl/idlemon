@@ -139,6 +139,7 @@ type WebSocketMessage struct {
 func CreateWebSocketChatMessage(msgId int, senderId uuid.UUID, senderName string, message string) WebSocketMessage {
 	chatMsg := ChatMessage{
 		Id:         msgId,
+		UserId:     senderId,
 		SenderName: senderName,
 		Message:    message,
 	}

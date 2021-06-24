@@ -11,6 +11,7 @@ import (
 
 type ChatMessage struct {
 	Id         int       `json:"id"`
+	UserId     uuid.UUID `json:"userId"`
 	SenderName string    `json:"senderName"`
 	Message    string    `json:"message"`
 	SentAt     time.Time `json:"sentAt"`
@@ -26,7 +27,7 @@ func GetChatMessages(ctx context.Context, db *pgxpool.Pool, start int, num int) 
 		start = math.MaxInt32
 	}
 
-	query := `SELECT id, sender_name, message, sent_at FROM chat_messages
+	query := `SELECT id, user_id, sender_name, message, sent_at FROM chat_messages
 			  WHERE id < $1
 			  ORDER BY id DESC
 			  LIMIT $2`
@@ -39,7 +40,7 @@ func GetChatMessages(ctx context.Context, db *pgxpool.Pool, start int, num int) 
 	for rows.Next() {
 		var cm ChatMessage
 
-		if err := rows.Scan(&cm.Id, &cm.SenderName, &cm.Message, &cm.SentAt); err != nil {
+		if err := rows.Scan(&cm.Id, &cm.UserId, &cm.SenderName, &cm.Message, &cm.SentAt); err != nil {
 			return chatMessages, err
 		}
 
