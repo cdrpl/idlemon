@@ -26,7 +26,7 @@ func CreateRouter(controller *Controller) *httprouter.Router {
 	router.PUT("/campaign/collect", auth(controller.CampaignCollect))
 
 	// chat routes
-	router.GET("/chat/messages", auth(controller.ChatMessageGet))
+	router.GET("/chat/message/history", auth(controller.ChatMessageHistory))
 	router.POST("/chat/message/send", auth(body(typeOf(ChatMessageSendReq{}), controller.ChatMessageSend)))
 
 	// daily quest routes

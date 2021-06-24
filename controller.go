@@ -111,7 +111,8 @@ func (c Controller) CampaignCollect(w http.ResponseWriter, r *http.Request, p ht
 
 /* Chat Routes */
 
-func (c Controller) ChatMessageGet(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+// Will return the history of chat messages starting from the start parameter(starting message ID).
+func (c Controller) ChatMessageHistory(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	queryParams := r.URL.Query()
 	userId := GetUserId(r)
 	start := 0
