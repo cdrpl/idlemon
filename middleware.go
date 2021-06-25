@@ -47,7 +47,7 @@ func (bpm BodyParserMiddleware) Middleware(dtotype reflect.Type, next httprouter
 		// create instance of dtotype
 		dto := reflect.New(dtotype).Interface().(RequestDTO)
 
-		// unmarshall response body into dto instance
+		// unmarshall request body into dto instance
 		if err := json.Unmarshal(bytes, dto); err != nil {
 			var typeErr *json.UnmarshalTypeError
 
