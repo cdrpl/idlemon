@@ -70,7 +70,7 @@ An admin account will be created during startup if the env var `CREATE_TABLES` i
 
 ### WebSocket Server
 
-Use the route `ws://localhost:3000/ws` when opening up a WebSocket connection with the server.
+Use the route `ws://localhost:3000/ws` when opening up a WebSocket connection with the server. Note that a valid authorization header is required to connect to the WebSocket server.
 
 ### Chat Messages
 
