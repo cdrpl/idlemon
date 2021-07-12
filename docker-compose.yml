@@ -5,7 +5,7 @@ services:
       context: .
     environment:
       - ENV=${ENV}
-      - PORT=${PORT}
+      - PORT=3000
       - CLIENT_VERSION=${CLIENT_VERSION}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
@@ -36,7 +36,9 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:${PORT}"
+      - "80:80"
     restart: always
+    depends_on:
+      - idlemon
     volumes: 
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
