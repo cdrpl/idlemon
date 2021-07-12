@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/crypto/bcrypt"
@@ -77,29 +75,32 @@ func InsertAdminUser(ctx context.Context, db *pgxpool.Pool, dataCache *DataCache
 	}
 	defer tx.Rollback(ctx)
 
-	if err := InsertUser(ctx, tx, dataCache, user); err != nil {
-		var pgErr *pgconn.PgError
+	var userId string // scan admin user id
 
-		// don't consider as error if admin user already exists
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			return nil
+	// insert admin user if not exists
+	err = tx.QueryRow(ctx, "SELECT id FROM users WHERE email = $1", user.Email).Scan(&userId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			if err := InsertUser(ctx, tx, dataCache, user); err != nil {
+				return fmt.Errorf("fail to insert user: %w", err)
+			}
+
+			// give admin user some resources to make testing easier
+			for _, resource := range dataCache.Resources {
+				if err := IncResource(ctx, tx, user.Id, resource.Type, 100000); err != nil {
+					return fmt.Errorf("fail to increase user resources: %w", err)
+				}
+			}
+
+			if err := tx.Commit(ctx); err != nil {
+				return fmt.Errorf("fail to commit transaction: %w", err)
+			}
+
+			log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", user.Id, user.Name, user.Email)
 		} else {
-			return fmt.Errorf("fail to insert user: %w", err)
+			return err
 		}
 	}
-
-	// give admin user some resources to make testing easier
-	for _, resource := range dataCache.Resources {
-		if err := IncResource(ctx, tx, user.Id, resource.Type, 100000); err != nil {
-			return fmt.Errorf("fail to increase user resources: %w", err)
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("fail to commit transaction: %w", err)
-	}
-
-	log.Printf("insert admin user {ID:%v Name:%v Email:%v}\n", user.Id, user.Name, user.Email)
 
 	return nil
 }
