@@ -26,6 +26,17 @@ const (
 	CAMPAIGN_EXP_STONE_GROWTH  = 3              // Exp stones gained from campaign increase by this value every 5 levels
 )
 
+// Request DTOs validation.
+const (
+	CHAT_MESSAGE_MIN_LEN = 1
+	CHAT_MESSAGE_MAX_LEN = 255
+	USER_NAME_MIN        = 2
+	USER_NAME_MAX        = 16
+	USER_EMAIL_MAX       = 255
+	USER_PASS_MIN        = 8
+	USER_PASS_MAX        = 255
+)
+
 // Unit types, must have the same value as their table row IDs.
 const (
 	UNIT_TYPE_FOREST = iota

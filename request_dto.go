@@ -1,48 +1,129 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"net/mail"
 	"strings"
 )
 
 type RequestDTO interface {
-	Sanitize()
+	Validate() error
 }
 
 type ChatMessageSendReq struct {
-	Message string `json:"message" validate:"required,min=1,max=255"`
+	Message string `json:"message"`
 }
 
-func (r *ChatMessageSendReq) Sanitize() {
+func (r *ChatMessageSendReq) Validate() error {
 	r.Message = strings.TrimSpace(r.Message)
+
+	// validate message minimum length
+	if len(r.Message) < CHAT_MESSAGE_MIN_LEN {
+		return fmt.Errorf("message must have at least %v characters", CHAT_MESSAGE_MIN_LEN)
+	}
+
+	// validate message max length
+	if len(r.Message) > CHAT_MESSAGE_MAX_LEN {
+		return fmt.Errorf("message cannot have more than %v characters", CHAT_MESSAGE_MAX_LEN)
+	}
+
+	return nil
 }
 
 type SignUpReq struct {
-	Name  string `json:"name" validate:"required,alphanum,min=2,max=16"`
-	Email string `json:"email" validate:"required,email,max=255"`
-	Pass  string `json:"pass" validate:"required,min=8,max=255"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Pass  string `json:"pass"`
 }
 
-func (r *SignUpReq) Sanitize() {
+func (r *SignUpReq) Validate() error {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Email = strings.TrimSpace(r.Email)
 	r.Email = strings.ToLower(r.Email)
+
+	if err := ValidateUserName(r.Name); err != nil {
+		return err
+	}
+
+	if err := ValidateEmail(r.Email); err != nil {
+		return err
+	}
+
+	if err := ValidateUserPass(r.Pass); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Sign in request
 type SignInReq struct {
-	Email string `json:"email" validate:"required,email,max=255"`
-	Pass  string `json:"pass" validate:"required,min=8,max=255"`
+	Email string `json:"email"`
+	Pass  string `json:"pass"`
 }
 
-func (s *SignInReq) Sanitize() {
-	s.Email = strings.TrimSpace(s.Email)
-	s.Email = strings.ToLower(s.Email)
+func (r *SignInReq) Validate() error {
+	r.Email = strings.TrimSpace(r.Email)
+	r.Email = strings.ToLower(r.Email)
+
+	if err := ValidateEmail(r.Email); err != nil {
+		return err
+	}
+
+	if err := ValidateUserPass(r.Pass); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type UserRenameReq struct {
-	Name string `json:"name" validate:"required,alphanum,min=2,max=16"`
+	Name string `json:"name"`
 }
 
-func (r *UserRenameReq) Sanitize() {
+func (r *UserRenameReq) Validate() error {
 	r.Name = strings.TrimSpace(r.Name)
+
+	if err := ValidateUserName(r.Name); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ValidateUserName(name string) error {
+	if len(name) < USER_NAME_MIN {
+		return fmt.Errorf("user name must have at least %v characters", USER_NAME_MIN)
+	}
+
+	if len(name) > USER_NAME_MAX {
+		return fmt.Errorf("user name cannot have more than %v characters", USER_NAME_MAX)
+	}
+
+	return nil
+}
+
+func ValidateEmail(email string) error {
+	if len(email) > USER_EMAIL_MAX {
+		return fmt.Errorf("email cannot have more than %v characters", USER_EMAIL_MAX)
+	}
+
+	if _, err := mail.ParseAddress(email); err != nil {
+		return errors.New("email address is invalid")
+	}
+
+	return nil
+}
+
+func ValidateUserPass(pass string) error {
+	if len(pass) < USER_PASS_MIN {
+		return fmt.Errorf("user password must have at least %v characters", USER_PASS_MIN)
+	}
+
+	if len(pass) > USER_PASS_MAX {
+		return fmt.Errorf("user password cannot have more than %v characters", USER_PASS_MAX)
+	}
+
+	return nil
 }

@@ -526,7 +526,7 @@ func TestUserRenameRoute(t *testing.T) {
 	token, user := AuthenticatedUser(t, idlemonServer.Db, idlemonServer.Rdb, idlemonServer.DataCache)
 
 	// test request with invalid name
-	renameReq := &UserRenameReq{Name: "new name dog"}
+	renameReq := &UserRenameReq{Name: ""}
 	response := SendRequest(t, method, url, user.Id, token, renameReq)
 	body := ReadResponseBody(t, response)
 

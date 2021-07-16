@@ -12,7 +12,7 @@ func CreateRouter(controller *Controller) *httprouter.Router {
 
 	// middleware
 	auth := CreateRequireTokenMiddleware(controller.rdb).Middleware
-	body := CreateBodyParserMiddleware().Middleware
+	body := BodyParserMiddleware
 
 	// shorthand reflect TypeOf
 	typeOf := reflect.TypeOf

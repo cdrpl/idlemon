@@ -68,6 +68,10 @@ An admin account will be created during startup if the env var `CREATE_TABLES` i
 5. Make sure a database with the same name as the DB_NAME env var exists.
 6. Run the server `go run .`
 
+### Integration Tests
+
+Run the tests with `go run .`. It will attempt to connect to the Postgres server using the username "test" and the DB_PASS environment variable for the password. The test setup can be found in [main_test.go](/main_test.go).
+
 ### WebSocket Server
 
 Use the route `ws://localhost:3000/ws` when opening up a WebSocket connection with the server. Note that a valid authorization header is required to connect to the WebSocket server.

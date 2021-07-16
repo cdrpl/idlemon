@@ -10,22 +10,13 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 )
 
-func CreateBodyParserMiddleware() BodyParserMiddleware {
-	return BodyParserMiddleware{validate: validator.New()}
-}
-
-type BodyParserMiddleware struct {
-	validate *validator.Validate
-}
-
-// Will only accept reflect types of request.DTO.
-func (bpm BodyParserMiddleware) Middleware(dtotype reflect.Type, next httprouter.Handle) httprouter.Handle {
+// Will only accept reflect types that implement RequestDTO.
+func BodyParserMiddleware(dtotype reflect.Type, next httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil {
@@ -62,9 +53,8 @@ func (bpm BodyParserMiddleware) Middleware(dtotype reflect.Type, next httprouter
 		}
 
 		// validate/sanitize fields of dto
-		msg, hasError := RunStructValidator(bpm.validate, dto)
-		if hasError {
-			ErrResCustom(w, http.StatusBadRequest, msg)
+		if err := dto.Validate(); err != nil {
+			ErrResCustom(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
